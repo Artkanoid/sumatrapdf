@@ -1182,10 +1182,6 @@ static void InstallUiDone(void*) {
     if (!IsMainWindowValidAndNotClosing(win)) {
         return;
     }
-    if (notif) {
-        CloseNotification(notif);
-    }
-
     bool ok = AtomicIntGet(&gInstallOk) != 0;
     TempStr voiceId = PiperDefaultVoiceId();
     if (ok && TtsSetVoiceById(voiceId)) {
@@ -1197,9 +1193,16 @@ static void InstallUiDone(void*) {
         ok = false;
     }
 
+    // the progress notification becomes the result: CloseNotification queues a
+    // removal that dangles if the notification is removed first
+    Str msg = ok ? Tr("Natural voice installed and selected") : Tr("Could not install the natural voice");
+    if (notif && UpdateNotificationProgress(notif, msg, ok ? 100 : 0)) {
+        NotificationUpdateMessage(notif, msg, 4000);
+        return;
+    }
     NotificationCreateArgs args;
     args.win = win;
-    args.msg = ok ? Tr("Natural voice installed and selected") : Tr("Could not install the natural voice");
+    args.msg = msg;
     args.warning = !ok;
     args.timeoutMs = 4000;
     ShowNotification(args);
@@ -1253,10 +1256,10 @@ void ReadAloudInstallVoice(MainWindow* win) {
     if (PiperInstallStart(InstallOnProgress, InstallOnDone)) {
         return;
     }
-    if (notif) {
-        CloseNotification(notif);
-    }
     gInstallNotif = nullptr;
+    if (notif && UpdateNotificationProgress(notif, Tr("Could not install the natural voice"), 0)) {
+        NotificationUpdateMessage(notif, Tr("Could not install the natural voice"), 4000);
+    }
 }
 #else
 void ReadAloudInstallVoice(MainWindow* win) {

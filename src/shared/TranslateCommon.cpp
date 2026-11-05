@@ -70,6 +70,17 @@ static void Notify(MainWindow* win, Str msg, bool warning = false) {
     ShowNotification(args);
 }
 
+// Turns the progress notification into the final message, which goes away by
+// itself. CloseNotification queues a removal that dangles when the notification
+// is removed first, and opening a document removes them.
+static void EndProgress(MainWindow* win, NotificationWnd* notif, Str msg, bool warning, int percent) {
+    if (notif && UpdateNotificationProgress(notif, msg, percent)) {
+        NotificationUpdateMessage(notif, msg, kNotifMs);
+        return;
+    }
+    Notify(win, msg, warning);
+}
+
 static bool IsEndOfSentence(char c) {
     return c == '.' || c == '!' || c == '?' || c == ':';
 }
@@ -192,13 +203,9 @@ static void RunUiDone(void*) {
         RunReset();
         return;
     }
-    if (notif) {
-        CloseNotification(notif);
-    }
-
     Str translated = {};
     if (!TranslateJobTake(job, &translated)) {
-        Notify(win, Tr("The translation failed"), true);
+        EndProgress(win, notif, Tr("The translation failed"), true, 0);
         RunReset();
         return;
     }
@@ -222,9 +229,10 @@ static void RunUiDone(void*) {
     bool ok = file::WriteFile(path, ToStr(out));
     RunReset();
     if (!ok) {
-        Notify(win, Tr("The translation failed"), true);
+        EndProgress(win, notif, Tr("The translation failed"), true, 0);
         return;
     }
+    EndProgress(win, notif, Tr("Translation ready"), false, kPercentFull);
     LoadDocument(win, path);
 }
 
@@ -269,11 +277,9 @@ static void StartRun(MainWindow* win, Str text, Str title, Str original, bool is
     if (gRun.job) {
         return;
     }
-    if (gRun.notif) {
-        CloseNotification(gRun.notif);
-    }
+    NotificationWnd* notif = gRun.notif;
     RunReset();
-    Notify(win, Tr("The translation failed"), true);
+    EndProgress(win, notif, Tr("The translation failed"), true, 0);
 }
 
 void TranslateSelectionOffline(MainWindow* win) {
@@ -313,12 +319,9 @@ void TranslateCancelOffline(MainWindow* win) {
         return;
     }
     TranslateJobCancel(gRun.job);
-    gRun.job = nullptr;
-    if (gRun.notif) {
-        CloseNotification(gRun.notif);
-    }
+    NotificationWnd* notif = gRun.notif;
     RunReset();
-    Notify(win, Tr("Translation cancelled"));
+    EndProgress(win, notif, Tr("Translation cancelled"), false, 0);
 }
 
 //--- install
@@ -342,11 +345,9 @@ static void InstallUiDone(void*) {
     if (!IsMainWindowValidAndNotClosing(win)) {
         return;
     }
-    if (notif) {
-        CloseNotification(notif);
-    }
     bool ok = AtomicIntGet(&gInstallOk) != 0;
-    Notify(win, ok ? Tr("Offline translation installed") : Tr("Could not install the offline translation"), !ok);
+    Str msg = ok ? Tr("Offline translation installed") : Tr("Could not install the offline translation");
+    EndProgress(win, notif, msg, !ok, ok ? kPercentFull : 0);
 }
 
 static void InstallOnProgress(int percent) {
@@ -383,10 +384,9 @@ void TranslateInstallOffline(MainWindow* win) {
     if (TranslateInstallStart(InstallOnProgress, InstallOnDone)) {
         return;
     }
-    if (gInstallNotif) {
-        CloseNotification(gInstallNotif);
-    }
+    NotificationWnd* notif = gInstallNotif;
     gInstallNotif = nullptr;
+    EndProgress(win, notif, Tr("Could not install the offline translation"), true, 0);
 }
 
 #else
