@@ -364,6 +364,10 @@ const CommandInfo gCommands[] = {
     {CmdReadAloudNextParagraph, "CmdReadAloudNextParagraph\0", StrL("Read Aloud: Next Paragraph")},
     {CmdReadAloudPrevParagraph, "CmdReadAloudPrevParagraph\0", StrL("Read Aloud: Previous Paragraph")},
     {CmdReadAloudInstallVoice, "CmdReadAloudInstallVoice\0", StrL("Read Aloud: Install Natural Voice")},
+    {CmdTranslateSelectionOffline, "CmdTranslateSelectionOffline\0", StrL("Translate Selection (Offline)")},
+    {CmdTranslateDocumentOffline, "CmdTranslateDocumentOffline\0", StrL("Translate Document (Offline)")},
+    {CmdTranslateInstallOffline, "CmdTranslateInstallOffline\0", StrL("Install Offline Translation")},
+    {CmdTranslateCancelOffline, "CmdTranslateCancelOffline\0", StrL("Cancel Offline Translation")},
 };
 const int gCommandsCount = dimofi(gCommands);
 

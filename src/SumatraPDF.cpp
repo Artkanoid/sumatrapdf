@@ -127,6 +127,7 @@
 #include "Theme.h"
 #include "DarkMode.h"
 #include "ReadAloud.h"
+#include "TranslateCommon.h"
 #include "ReadingAutoScroll.h"
 #include "ReadingBar.h"
 #include "ExplorerQuickLook.h"
@@ -11035,6 +11036,22 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
             ReadAloudJumpInTab(tab, kind);
             break;
         }
+
+        case CmdTranslateSelectionOffline:
+            TranslateSelectionOffline(win);
+            break;
+
+        case CmdTranslateDocumentOffline:
+            TranslateDocumentOffline(win);
+            break;
+
+        case CmdTranslateInstallOffline:
+            TranslateInstallOffline(win);
+            break;
+
+        case CmdTranslateCancelOffline:
+            TranslateCancelOffline(win);
+            break;
 
         case CmdReadAloudInstallVoice:
             ReadAloudInstallVoice(win);

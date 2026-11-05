@@ -141,6 +141,7 @@ static bool IsHiddenOnWasm(int cmdId) {
 
 uintptr_t disableIfNoSelection[] = {
     CmdCopySelection,
+    CmdTranslateSelectionOffline,
     CmdZoomToSelection,
     CmdFindNextSel,
     CmdFindPrevSel,
@@ -162,6 +163,8 @@ uintptr_t disableIfNoSelection[] = {
 // any, so these stay out of the menu instead of sitting disabled.
 static const i32 removeIfNoExtractedText[] = {
     CmdSelectCurrentPage,
+    CmdTranslateSelectionOffline,
+    CmdTranslateDocumentOffline,
     CmdFindNextSel,
     CmdFindPrevSel,
     CmdTranslateSelection,
@@ -234,6 +237,8 @@ static const i32 removeIfNoPrefsPerms[] = {
 };
 
 static const i32 removeIfNoCopyPerms[] = {
+    CmdTranslateSelectionOffline,
+    CmdTranslateDocumentOffline,
     CmdTranslateSelection,
     CmdTranslateSelectionWithGoogle,
     CmdTranslateSelectionWithDeepL,

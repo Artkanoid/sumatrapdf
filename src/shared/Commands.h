@@ -358,8 +358,12 @@ enum {
     CmdReadAloudNextParagraph = 552,
     CmdReadAloudPrevParagraph = 553,
     CmdReadAloudInstallVoice = 554,
+    CmdTranslateSelectionOffline = 555,
+    CmdTranslateDocumentOffline = 556,
+    CmdTranslateInstallOffline = 557,
+    CmdTranslateCancelOffline = 558,
 
-    CmdLast = 554,
+    CmdLast = 558,
     CmdFirstCustom = CmdLast + 100,
 
     // aliases, at the end to not mess ordering

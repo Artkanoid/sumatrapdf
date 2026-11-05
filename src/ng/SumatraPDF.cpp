@@ -97,6 +97,7 @@
 #include "ReadingBar.h"
 #include "ReadingAutoScroll.h"
 #include "ReadAloud.h"
+#include "TranslateCommon.h"
 #include "SelectTextKeyboard.h"
 #include "SumatraDialogs.h"
 #include "TableOfContents.h"
@@ -5341,6 +5342,22 @@ void ExecuteCmd(MainWindow* win, int cmdId) {
             ReadAloudJumpInTab(tab, kind);
             break;
         }
+
+        case CmdTranslateSelectionOffline:
+            TranslateSelectionOffline(win);
+            break;
+
+        case CmdTranslateDocumentOffline:
+            TranslateDocumentOffline(win);
+            break;
+
+        case CmdTranslateInstallOffline:
+            TranslateInstallOffline(win);
+            break;
+
+        case CmdTranslateCancelOffline:
+            TranslateCancelOffline(win);
+            break;
 
         case CmdReadAloudInstallVoice:
             ReadAloudInstallVoice(win);

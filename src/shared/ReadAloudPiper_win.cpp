@@ -18,9 +18,7 @@
 #include "EngineBase.h"
 #include "ReadAloud.h"
 #include "ReadAloudPiper.h"
-
-#include <bcrypt.h>
-#pragma comment(lib, "bcrypt.lib")
+#include "VerifiedDownload.h"
 
 #include "SumatraLog.h"
 
@@ -348,8 +346,6 @@ constexpr int kPercentEngineDownload = 26;
 constexpr int kPercentEngineExtract = 30;
 constexpr int kPercentVoiceDone = 100;
 
-constexpr char kPartExt[] = ".part";
-
 TempStr PiperDefaultVoiceId() {
     return str::JoinTemp(Str(kPiperVoicePrefix), Str(kPiperDefaultVoice));
 }
@@ -358,76 +354,21 @@ bool PiperEngineInstalled() {
     return file::Exists(PiperExePathTemp());
 }
 
-static bool Sha256HexMatches(Str data, const char* expectedHex) {
-    BCRYPT_ALG_HANDLE alg = nullptr;
-    BCRYPT_HASH_HANDLE hash = nullptr;
-    u8 digest[32]{};
-    bool ok = BCryptOpenAlgorithmProvider(&alg, BCRYPT_SHA256_ALGORITHM, nullptr, 0) == 0 &&
-              BCryptCreateHash(alg, &hash, nullptr, 0, nullptr, 0, 0) == 0 &&
-              BCryptHashData(hash, (PUCHAR)data.s, (ULONG)len(data), 0) == 0 &&
-              BCryptFinishHash(hash, digest, sizeof(digest), 0) == 0;
-    if (hash) {
-        BCryptDestroyHash(hash);
-    }
-    if (alg) {
-        BCryptCloseAlgorithmProvider(alg, 0);
-    }
-    if (!ok) {
-        return false;
-    }
-    char hex[sizeof(digest) * 2 + 1]{};
-    for (size_t i = 0; i < sizeof(digest); i++) {
-        sprintf_s(hex + i * 2, 3, "%02x", digest[i]);
-    }
-    return str::EqI(Str(hex), Str(expectedHex));
-}
-
 struct PiperInstall {
     void (*onProgress)(int percent) = nullptr;
     void (*onDone)(bool ok) = nullptr;
-    int base = 0;  // percent done before the current download
-    int share = 0; // percent the current download adds
-    i64 expectedBytes = 1;
+    DownloadProgress download;
 };
 
 static PiperInstall* gInstall = nullptr;
 
-static void InstallOnDownload(PiperInstall* in, HttpProgress* p) {
-    i64 done = p->nDownloaded < in->expectedBytes ? p->nDownloaded : in->expectedBytes;
-    in->onProgress(in->base + (int)(done * in->share / in->expectedBytes));
-}
-
-// downloads to dest.part, checks the SHA-256, then moves it to dest
 static bool InstallDownload(PiperInstall* in, const char* url, Str dest, const char* sha256, i64 bytes, int base,
                             int share) {
-    in->base = base;
-    in->share = share;
-    in->expectedBytes = bytes;
-
-    TempStr part = str::JoinTemp(dest, Str(kPartExt));
-    dir::CreateForFile(dest);
-    auto cb = MkFunc1(InstallOnDownload, in);
-    if (!HttpGetToFile(Str(url), part, cb)) {
-        logf("tts: piper: download failed '%s'\n", Str(url));
-        file::Delete(part);
-        return false;
-    }
-    Str data = file::ReadFile(part);
-    bool ok = len(data) > 0 && Sha256HexMatches(data, sha256);
-    str::Free(data);
-    if (!ok) {
-        logf("tts: piper: hash mismatch '%s'\n", Str(url));
-        file::Delete(part);
-        return false;
-    }
-    return MoveFileExW(CWStrTemp(part), CWStrTemp(dest), MOVEFILE_REPLACE_EXISTING) != 0;
-}
-
-static bool NameIsSafe(Str name) {
-    if (len(name) == 0 || str::IndexOf(name, StrL("..")) >= 0 || str::IndexOfChar(name, ':') >= 0) {
-        return false;
-    }
-    return name.s[0] != '/' && name.s[0] != '\\';
+    in->download.onProgress = in->onProgress;
+    in->download.base = base;
+    in->download.share = share;
+    in->download.expectedBytes = bytes;
+    return DownloadVerified(Str(url), dest, Str(sha256), &in->download);
 }
 
 // piper_windows_amd64.zip holds everything under "piper/"
@@ -443,7 +384,7 @@ static bool InstallExtractEngine(Str zipPath) {
             continue;
         }
         Str rel = Str(fi->name.s + kPiperEngineZipPrefixLen, len(fi->name) - kPiperEngineZipPrefixLen);
-        if (!NameIsSafe(rel)) {
+        if (!NameIsSafeForExtract(rel)) {
             logf("tts: piper: unsafe name in zip '%s'\n", fi->name);
             return false;
         }
