@@ -249,7 +249,9 @@ static bool PiperRun(PiperJob* job) {
     CloseHandle(pi.hThread);
 
     if (!exited || exitCode != 0) {
-        logf("tts: piper: failed exited=%d code=%d\n", (int)exited, (int)exitCode);
+        if (!AtomicBoolGet(&job->cancelled)) {
+            logf("tts: piper: failed exited=%d code=%d\n", (int)exited, (int)exitCode);
+        }
         return false;
     }
     return true;
