@@ -607,6 +607,80 @@ bool ReadAloudSentenceRange(Str text, int pos, int* startOut, int* endOut) {
     return true;
 }
 
+static int ReadAloudSkipSpaces(Str text, int i) {
+    while (i < text.len && text.s[i] == ' ') {
+        i++;
+    }
+    return i;
+}
+
+// A paragraph break is a run of 2+ spaces in the cleaned text.
+static int ReadAloudParagraphStart(Str text, int pos) {
+    int start = 0;
+    for (int i = 0; i < pos && i + 1 < text.len; i++) {
+        if (text.s[i] != ' ' || text.s[i + 1] != ' ') {
+            continue;
+        }
+        int after = ReadAloudSkipSpaces(text, i);
+        if (after <= pos) {
+            start = after;
+        }
+        i = after - 1;
+    }
+    return start;
+}
+
+// Where to restart speaking when jumping from pos; -1 if there is nowhere to go.
+// Prev* first returns to the start of the current unit, like a media player.
+int ReadAloudJumpPos(Str text, int pos, ReadAloudJump kind) {
+    if (len(text) == 0 || pos < 0) {
+        return -1;
+    }
+    pos = std::min(pos, text.len);
+
+    if (kind == ReadAloudJump::NextSentence) {
+        int s = 0;
+        int e = 0;
+        if (!ReadAloudSentenceRange(text, pos, &s, &e)) {
+            return -1;
+        }
+        int next = ReadAloudSkipSpaces(text, e);
+        return next < text.len ? next : -1;
+    }
+
+    if (kind == ReadAloudJump::PrevSentence) {
+        int s = 0;
+        int e = 0;
+        if (!ReadAloudSentenceRange(text, pos, &s, &e)) {
+            return -1;
+        }
+        if (pos > s || s == 0) {
+            return s;
+        }
+        if (!ReadAloudSentenceRange(text, s - 1, &s, &e)) {
+            return -1;
+        }
+        return s;
+    }
+
+    if (kind == ReadAloudJump::NextParagraph) {
+        for (int i = pos; i + 1 < text.len; i++) {
+            if (text.s[i] != ' ' || text.s[i + 1] != ' ') {
+                continue;
+            }
+            int next = ReadAloudSkipSpaces(text, i);
+            return next < text.len ? next : -1;
+        }
+        return -1;
+    }
+
+    int start = ReadAloudParagraphStart(text, pos);
+    if (pos > start || start == 0) {
+        return start;
+    }
+    return ReadAloudParagraphStart(text, start - 1);
+}
+
 struct ReadAloudLineRun {
     Location pageLoc;
     RectF bbox;

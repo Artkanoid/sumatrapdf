@@ -956,6 +956,12 @@ CommandVisibility GetCommandVisibility(int cmdId, const AppCommandCtx& ctx, Comm
     if (cmdId == CmdReadAloudSelection) {
         return ctx.hasSelection ? CommandVisibility::Show : CommandVisibility::Hide;
     }
+    if (cmdId >= CmdReadAloudNextSentence && cmdId <= CmdReadAloudPrevParagraph) {
+        if (!ctx.ttsAvailable || ctx.isImageCollection) {
+            return CommandVisibility::Hide;
+        }
+        return (ctx.isSpeaking || ctx.canContinueReadAloud) ? CommandVisibility::Show : CommandVisibility::Hide;
+    }
 
     if (cmdId == CmdToggleAutomaticallyScroll || cmdId == CmdAutomaticallyScrollFaster ||
         cmdId == CmdAutomaticallyScrollSlower) {

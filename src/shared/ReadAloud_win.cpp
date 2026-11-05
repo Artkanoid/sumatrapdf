@@ -59,6 +59,7 @@ static Str gTtsVoiceId;
 constexpr float kTtsSpeedMin = 0.5f;
 constexpr float kTtsSpeedMax = 3.0f;
 static float gTtsSpeed = 1.0f;
+static float gTtsVolume = 1.0f;
 
 static HWND gTtsNotifyHwnd = nullptr;
 static UINT gTtsNotifyMsg = 0;
@@ -325,6 +326,13 @@ static void SapiApplySpeed() {
     gSapiVoice->SetRate(rateAdjust);
 }
 
+static void SapiApplyVolume() {
+    if (SapiCrashed() || !gSapiVoice) {
+        return;
+    }
+    gSapiVoice->SetVolume((USHORT)(gTtsVolume * 100.0f + 0.5f));
+}
+
 static bool SapiInit() {
     if (SapiCrashed()) {
         return false;
@@ -362,6 +370,7 @@ static bool SapiInit() {
 
     SapiRememberEngineDir();
     SapiApplySpeed();
+    SapiApplyVolume();
     SapiSetNotify();
     return true;
 }
@@ -1212,6 +1221,14 @@ static void CALLBACK WinTtsWaveOutCb(HWAVEOUT /*hwo*/, UINT msg, DWORD_PTR /*ins
     TtsPostNotifyMsg();
 }
 
+static void WinTtsApplyVolume() {
+    if (!gWinWaveOut) {
+        return;
+    }
+    DWORD level = (DWORD)(gTtsVolume * 0xFFFF + 0.5f);
+    waveOutSetVolume(gWinWaveOut, level | (level << 16));
+}
+
 static bool WinTtsStartPlayback() {
     DWORD wavSize = gWinWaveHdr.dwBufferLength;
     gWinWaveHdr = {};
@@ -1242,6 +1259,7 @@ static bool WinTtsStartPlayback() {
     gWinAvgBytesPerSec = wfx.nAvgBytesPerSec;
     gWinSamplesPerSec = wfx.nSamplesPerSec;
 
+    WinTtsApplyVolume();
     gWinWaveHdr.lpData = (LPSTR)data;
     gWinWaveHdr.dwBufferLength = dataSize;
     if (waveOutPrepareHeader(gWinWaveOut, &gWinWaveHdr, sizeof(gWinWaveHdr)) != MMSYSERR_NOERROR ||
@@ -1653,6 +1671,18 @@ void TtsSetSpeed(float speed) {
 
 float TtsGetSpeed() {
     return gTtsSpeed;
+}
+
+// WinRT is played through waveOut, so its volume applies at once. SAPI too.
+void TtsSetVolume(float volume) {
+    gTtsVolume = ClampF(volume, 0.0f, 1.0f);
+
+    WinTtsApplyVolume();
+    SapiApplyVolume();
+}
+
+float TtsGetVolume() {
+    return gTtsVolume;
 }
 
 void TtsFreeVoices(Vec<TtsVoiceInfo>& voices) {

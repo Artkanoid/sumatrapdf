@@ -359,6 +359,10 @@ const CommandInfo gCommands[] = {
     {CmdNewTab, "CmdNewTab\0", StrL("New Tab")},
     {CmdShowSignatures, "CmdShowSignatures\0", StrL("Show Signatures")},
     {CmdOpenFromURL, "CmdOpenFromURL\0", StrL("Open from URL...")},
+    {CmdReadAloudNextSentence, "CmdReadAloudNextSentence\0", StrL("Read Aloud: Next Sentence")},
+    {CmdReadAloudPrevSentence, "CmdReadAloudPrevSentence\0", StrL("Read Aloud: Previous Sentence")},
+    {CmdReadAloudNextParagraph, "CmdReadAloudNextParagraph\0", StrL("Read Aloud: Next Paragraph")},
+    {CmdReadAloudPrevParagraph, "CmdReadAloudPrevParagraph\0", StrL("Read Aloud: Previous Paragraph")},
 };
 const int gCommandsCount = dimofi(gCommands);
 

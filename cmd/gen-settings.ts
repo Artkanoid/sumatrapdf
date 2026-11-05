@@ -1866,6 +1866,19 @@ const globalPrefs: Field[] = [
     "playback speed multiplier for Read Aloud text-to-speech (0.5 .. 3.0), 1 is normal speed; can also be changed from the Read Aloud playback bar",
   ).ver("3.7"),
   field(
+    "ReadAloudVolume",
+    Float,
+    1,
+    "volume of Read Aloud text-to-speech (0 .. 1), 1 is full volume; can also be changed from the Read Aloud playback bar",
+  ).ver("3.7"),
+  field("ReadAloudHighlight", Bool, true, "if true, Read Aloud underlines the sentence and word being spoken").ver(
+    "3.7",
+  ),
+  field("ReadAloudWordColor", Color, "#f59e0b", "color of the underline marking the word being spoken").ver("3.7"),
+  field("ReadAloudSentenceColor", Color, "#3b82f6", "color of the underline marking the sentence being spoken").ver(
+    "3.7",
+  ),
+  field(
     "ReadingAutoScrollSpeed",
     Float,
     40,
@@ -2351,6 +2364,10 @@ const globalPrefsLayout = [
   "SaveMemory",
   "CitationHoverDelay",
   "ReadAloudSpeed",
+  "ReadAloudVolume",
+  "ReadAloudHighlight",
+  "ReadAloudWordColor",
+  "ReadAloudSentenceColor",
   "ReadingAutoScrollSpeed",
   "ReadingBar",
   "TabWidth",

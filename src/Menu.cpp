@@ -251,6 +251,10 @@ static MenuDef menuDefContext[] = {
         (UINT_PTR)menuDefDocumentOperations,
     },
     {
+        TrN("Start Reading From Cursor Position"),
+        CmdReadAloudFromCursorPosition,
+    },
+    {
         TrN("Read Aloud"),
         (UINT_PTR)menuDefContextReadAloud,
     },
@@ -1136,6 +1140,11 @@ void OnWindowContextMenu(MainWindow* win, int x, int y) {
     bool isImageDoc = engine && (engine->isImageCollection || engine->kind == kindEngineImage ||
                                  engine->kind == kindEngineImageDir || engine->kind == kindEngineComicBooks);
     win->contextMenuPtValid = !isImageDoc && ReadAloudCanReadFromCursor(dm, cursorPos);
+    if (isImageDoc) {
+        MenuRemove(popup, CmdReadAloudFromCursorPosition);
+    } else {
+        MenuSetEnabled(popup, CmdReadAloudFromCursorPosition, win->contextMenuPtValid);
+    }
     HMENU readAloudCtxMenu = GetReadAloudContextSubmenu();
     // no text to speak on comics / image folders / single images
     if (readAloudCtxMenu && !isImageDoc) {

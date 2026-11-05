@@ -51,6 +51,8 @@ Str TtsGetVoiceId();
 
 void TtsSetSpeed(float speed);
 float TtsGetSpeed();
+void TtsSetVolume(float volume);
+float TtsGetVolume();
 
 bool TtsOnEngineCrash(void* faultAddr);
 bool TtsTakeEngineCrash();
@@ -118,6 +120,18 @@ void PaintReadAloudHighlight(MainWindow* win, Gfx* gfx);
 #endif
 
 bool ReadAloudSentenceRange(Str text, int pos, int* startOut, int* endOut);
+bool ReadAloudHighlightEnabled();
+Color ReadAloudWordColor();
+Color ReadAloudSentenceColor();
+
+enum class ReadAloudJump {
+    PrevSentence,
+    NextSentence,
+    PrevParagraph,
+    NextParagraph,
+};
+
+int ReadAloudJumpPos(Str text, int pos, ReadAloudJump kind);
 
 bool IsReadAloudLowerAscii(char c);
 bool IsReadAloudLineBreak(char c);
@@ -169,6 +183,9 @@ constexpr int CmdTtsMenuStopReading = 0x7205;
 constexpr int CmdTtsSpeedFirst = 0x7300;
 constexpr int CmdTtsSpeedLast = 0x730f;
 
+int ReadAloudFindChunkEnd(Str text, int start, int maxLen);
+TempStr CleanReadAloudTextTemp(Str text);
+
 WindowTab* GetReadAloudSourceTab();
 void ReadAloudForgetTab(WindowTab*);
 void ReadAloudAfterTtsEvents();
@@ -180,6 +197,9 @@ void ReadAloudSelectionInTab(WindowTab* tab);
 void ReadAloudFromViewportTopInTab(WindowTab* tab);
 void ReadAloudFromCursorInTab(WindowTab* tab, Point screenPt);
 void ReadAloudStopRememberPos();
+void ReadAloudJumpInTab(WindowTab* tab, ReadAloudJump kind);
+bool ReadAloudJumpByWheel(WindowTab* tab, int delta);
+int ReadAloudMenuAccelCmd(int menuId);
 void ResetReadAloudStateForTab(WindowTab* tab);
 void StopReadAloudIfSourceWindow(MainWindow* win);
 
@@ -236,6 +256,7 @@ void ReadAloudShowNotif(WindowTab* tab, Str msg);
 
 // implemented by each app
 void ReadAloudSetSpeed(float speed);
+void ReadAloudSetVolume(float volume);
 
 TempStr TtsLangIdToLocaleNameTemp(Str lang);
 void HandleReadAloudMenuSelection(MainWindow* win, int selected);

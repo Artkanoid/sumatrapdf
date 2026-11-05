@@ -25,6 +25,7 @@ static NSString* gTtsQueuedText = nil;
 static NSString* gTtsSpokenText = nil;
 static Str gTtsVoiceId;
 static float gTtsSpeed = 1.0f;
+static float gTtsVolume = 1.0f;
 static int gTtsLastWordPos = 0;
 static bool gTtsActive = false;
 static bool gTtsQueuedStarted = false;
@@ -58,6 +59,7 @@ static AVSpeechUtterance* TtsMakeUtterance(NSString* text) {
     AVSpeechUtterance* utterance = [AVSpeechUtterance speechUtteranceWithString:text];
     utterance.voice = TtsVoice();
     utterance.rate = TtsRate();
+    utterance.volume = gTtsVolume;
     return utterance;
 }
 
@@ -249,6 +251,14 @@ void TtsSetSpeed(float speed) {
 
 float TtsGetSpeed() {
     return gTtsSpeed;
+}
+
+void TtsSetVolume(float volume) {
+    gTtsVolume = limitValue(volume, 0.0f, 1.0f);
+}
+
+float TtsGetVolume() {
+    return gTtsVolume;
 }
 
 void TtsMacRelease() {

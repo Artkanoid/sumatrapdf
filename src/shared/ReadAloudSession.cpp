@@ -32,6 +32,23 @@
 
 int gReadAloudPaintLogState = 0;
 
+constexpr Color kReadAloudWordColDefault = MkRgb(0xf5, 0x9e, 0x0b);
+constexpr Color kReadAloudSentenceColDefault = MkRgb(0x3b, 0x82, 0xf6);
+
+bool ReadAloudHighlightEnabled() {
+    return !gSettings || gSettings->readAloudHighlight;
+}
+
+Color ReadAloudWordColor() {
+    return gSettings ? GetParsedColor(gSettings->readAloudWordColor, kReadAloudWordColDefault)
+                     : kReadAloudWordColDefault;
+}
+
+Color ReadAloudSentenceColor() {
+    return gSettings ? GetParsedColor(gSettings->readAloudSentenceColor, kReadAloudSentenceColDefault)
+                     : kReadAloudSentenceColDefault;
+}
+
 void ReadAloudPaintLogOnce(int code, [[maybe_unused]] Str fmt) {
     if (gReadAloudPaintLogState == code) {
         return;
@@ -326,7 +343,7 @@ static bool IsReadAloudSentencePunct(int c) {
 
 // Prefer a sentence end in the window so TTS does not drop intonation mid-clause
 // (issue #6110). Skip "e.g. the" (lowercase after the period). Else last space.
-static int ReadAloudFindChunkEnd(Str text, int start, int maxLen) {
+int ReadAloudFindChunkEnd(Str text, int start, int maxLen) {
     int textLen = text.len;
     if (start >= textLen) {
         return textLen;
@@ -541,7 +558,7 @@ SpeakChunkResult ReadAloudSpeakChunk(WindowTab* tab, Str errMsg) {
 }
 
 // Text cleanup for speech
-static TempStr CleanReadAloudTextTemp(Str text) {
+TempStr CleanReadAloudTextTemp(Str text) {
     if (len(text) == 0) {
         return {};
     }
@@ -1067,6 +1084,48 @@ void ReadAloudContinueInTab(WindowTab* tab) {
     ReadAloudPlaybackBarUpdateSession(tab);
 }
 
+// Restart speaking at the previous / next sentence or paragraph of the
+// running or paused session.
+void ReadAloudJumpInTab(WindowTab* tab, ReadAloudJump kind) {
+    if (!tab || !tab->win || len(tab->readAloudText) == 0) {
+        return;
+    }
+
+    int curr = -1;
+    if (TtsIsSpeaking() && GetReadAloudSourceTab() == tab) {
+        TtsProcessEvents();
+        int pos = TtsGetSpokenPosUtf8();
+        curr = tab->readAloudChunkStart + std::max(pos, 0);
+    } else if (CanContinueReadAloud(tab)) {
+        curr = tab->readAloudResumePos - tab->readAloudHighlightBase;
+    }
+    if (curr < 0) {
+        return;
+    }
+
+    int target = ReadAloudJumpPos(tab->readAloudText, curr, kind);
+    if (target < 0) {
+        return;
+    }
+
+    if (TtsIsSpeaking()) {
+        TtsStop();
+    }
+    tab->readAloudResumePos = tab->readAloudHighlightBase + target;
+    ReadAloudContinueInTab(tab);
+}
+
+// Wheel up goes back a sentence, down forward. False when there is no
+// session to move in, so the caller can do its usual wheel action.
+bool ReadAloudJumpByWheel(WindowTab* tab, int delta) {
+    bool active = tab && ((TtsIsSpeaking() && GetReadAloudSourceTab() == tab) || CanContinueReadAloud(tab));
+    if (!active || delta == 0) {
+        return false;
+    }
+    ReadAloudJumpInTab(tab, delta > 0 ? ReadAloudJump::PrevSentence : ReadAloudJump::NextSentence);
+    return true;
+}
+
 WindowTab* GetReadAloudSourceTab() {
     return gReadAloudSourceTab;
 }
@@ -1210,6 +1269,24 @@ TempStr TtsLangIdToLocaleNameTemp(Str lang) {
 #else
     return str::DupTemp(lang);
 #endif
+}
+
+// The command whose shortcut a Read Aloud menu row shows, 0 if it has none.
+int ReadAloudMenuAccelCmd(int menuId) {
+    switch (menuId) {
+        case CmdTtsMenuPauseReading:
+        case CmdTtsMenuContinueReading:
+            return CmdToggleReadAloud;
+        case CmdTtsMenuStopReading:
+            return CmdStopReadAloud;
+        case CmdTtsMenuReadCurrentPage:
+            return CmdReadAloudFromTopPage;
+        case CmdTtsMenuReadFromCursor:
+            return CmdReadAloudFromCursorPosition;
+        case CmdTtsMenuReadSelection:
+            return CmdReadAloudSelection;
+    }
+    return 0;
 }
 
 void HandleReadAloudMenuSelection(MainWindow* win, int selected) {

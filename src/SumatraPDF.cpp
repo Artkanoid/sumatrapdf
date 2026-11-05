@@ -11017,6 +11017,25 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
             break;
         }
 
+        case CmdReadAloudNextSentence:
+        case CmdReadAloudPrevSentence:
+        case CmdReadAloudNextParagraph:
+        case CmdReadAloudPrevParagraph: {
+            if (!tab) {
+                break;
+            }
+            ReadAloudJump kind = ReadAloudJump::NextSentence;
+            if (cmdId == CmdReadAloudPrevSentence) {
+                kind = ReadAloudJump::PrevSentence;
+            } else if (cmdId == CmdReadAloudNextParagraph) {
+                kind = ReadAloudJump::NextParagraph;
+            } else if (cmdId == CmdReadAloudPrevParagraph) {
+                kind = ReadAloudJump::PrevParagraph;
+            }
+            ReadAloudJumpInTab(tab, kind);
+            break;
+        }
+
         case CmdReadAloudFromCursorPosition: {
             if (!tab) {
                 break;

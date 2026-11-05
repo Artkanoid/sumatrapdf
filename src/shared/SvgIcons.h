@@ -19,6 +19,8 @@ extern const char* gIconRotateRight;
 extern const char* gIconCopy;
 extern const char* gIconTranslate;
 extern const char* gIconSpeak;
+extern const char* gIconVolumeLow;
+extern const char* gIconVolumeMuted;
 extern const char* gIconPauseSpeaking;
 extern const char* gIconNavigateBack;
 extern const char* gIconNavigateForward;

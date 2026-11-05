@@ -15,6 +15,7 @@ static Str gTtsSpokenText;
 static Str gTtsQueuedText;
 static Str gTtsVoiceId;
 static float gTtsSpeed = 1.0f;
+static float gTtsVolume = 1.0f;
 static int gTtsSpokenPos = 0;
 static int gTtsActiveToken = 0;
 static int gTtsQueuedToken = 0;
@@ -283,6 +284,15 @@ void TtsSetSpeed(float speed) {
 
 float TtsGetSpeed() {
     return gTtsSpeed;
+}
+
+// kept for the playback bar; WasmTtsSpeak takes no volume yet
+void TtsSetVolume(float volume) {
+    gTtsVolume = limitValue(volume, 0.0f, 1.0f);
+}
+
+float TtsGetVolume() {
+    return gTtsVolume;
 }
 
 void TtsWasmRelease() {

@@ -1546,6 +1546,9 @@ static void CanvasOnMouseWheel(MainWindow* win, int delta, bool isCtrl, bool isS
         return;
     }
     DisplayModel* dm = win->AsFixed();
+    if (isCtrl && isAlt && ReadAloudJumpByWheel(win->CurrentTab(), delta)) {
+        return;
+    }
     if (isCtrl) {
         ZoomByMouseWheel(win, delta, pt);
         return;
@@ -2606,6 +2609,11 @@ static void OnMouseLeftButtonDown(MainWindow* win, int x, int y) {
         return;
     }
     if (AnnotationPlacementOnLeftDown(win, Point{x, y}, CanvasShiftPressed(), CanvasCtrlPressed())) {
+        return;
+    }
+    // Ctrl+Alt+click: Read Aloud from the clicked point
+    if (CanvasCtrlPressed() && gAltPressed) {
+        ExecuteCmdAtPoint(win, CmdReadAloudFromCursorPosition, Point{x, y});
         return;
     }
     // Configure Page Grid is open, or Alt is held: a press on a grid line

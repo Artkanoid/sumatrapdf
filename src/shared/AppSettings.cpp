@@ -106,6 +106,7 @@ static bool ApplyReadAloudVoiceFromSettings() {
 
     float speed = gSettings->readAloudSpeed;
     TtsSetSpeed(speed > 0 ? speed : 1.0f);
+    TtsSetVolume(gSettings->readAloudVolume);
 
     Str voiceId = gSettings->readAloudVoiceId;
     if (len(voiceId) == 0) {

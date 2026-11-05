@@ -180,6 +180,10 @@ static MenuDef menuDefContext[] = {
         (UINT_PTR)menuDefDocumentOperations,
     },
     {
+        TrN("Start Reading From Cursor Position"),
+        CmdReadAloudFromCursorPosition,
+    },
+    {
         TrN("Read Aloud"),
         (UINT_PTR)menuDefContextReadAloud,
     },
@@ -923,6 +927,12 @@ MenuModel* BuildWindowContextMenu(MainWindow* win, Point cursorPos) {
 
     BuildMenuCtx* ctx = NewBuildMenuCtx(tab, cursorPos);
     MenuModel* popup = BuildMenuFromDef(menuDefContext, ctx);
+
+    if (isImageDoc) {
+        MenuRemove(popup, CmdReadAloudFromCursorPosition);
+    } else {
+        MenuSetEnabled(popup, CmdReadAloudFromCursorPosition, win->contextMenuPtValid);
+    }
 
     // in fullscreen, add "Menu" as first item containing the full menu bar
     bool isFullScreen = win->isFullScreen || win->presentation;

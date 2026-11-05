@@ -12,6 +12,7 @@
 #include "gui/Gfx.h"
 #include "gui/GuiColors.h"
 #include "gui/VirtCtrl.h"
+#include "SvgIcons.h"
 
 #include "SumatraConfig.h"
 #include "Settings.h"
@@ -25,6 +26,7 @@
 #include "TextSelection.h"
 #include "Notifications.h"
 #include "Menu.h"
+#include "Accelerators.h"
 #include "Toolbar.h"
 #include "Theme.h"
 #include "WindowTab.h"
@@ -58,7 +60,7 @@ void ReadAloudHighlightTimerStop(MainWindow* win) {
 }
 
 void PaintReadAloudHighlight(MainWindow* win, Gfx* gfx) {
-    if (!TtsIsSpeaking()) {
+    if (!ReadAloudHighlightEnabled() || !TtsIsSpeaking()) {
         gReadAloudPaintLogState = 0;
         return;
     }
@@ -104,8 +106,8 @@ void PaintReadAloudHighlight(MainWindow* win, Gfx* gfx) {
         return;
     }
 
-    constexpr Color kSentenceCol = MkRgb(0x3b, 0x82, 0xf6);
-    constexpr Color kWordCol = MkRgb(0xf5, 0x9e, 0x0b);
+    Color sentenceCol = ReadAloudSentenceColor();
+    Color wordCol = ReadAloudWordColor();
     int minThick = DpiScale(2);
 
     Vec<Rect> sentenceRects;
@@ -115,7 +117,7 @@ void PaintReadAloudHighlight(MainWindow* win, Gfx* gfx) {
         ReadAloudAppendUnderlines(dm, win->canvasRc, map, sentStartAbs, sentEndAbs, minThick, 10, sentenceRects);
     }
     if (len(sentenceRects) > 0) {
-        gfx->FillRects(sentenceRects.els, len(sentenceRects), kSentenceCol);
+        gfx->FillRects(sentenceRects.els, len(sentenceRects), sentenceCol);
     }
 
     Vec<Rect> wordRects;
@@ -124,7 +126,7 @@ void PaintReadAloudHighlight(MainWindow* win, Gfx* gfx) {
         ReadAloudPaintLogOnce(7, StrL("PaintHighlight: no screen rects for current word"));
         return;
     }
-    gfx->FillRects(wordRects.els, len(wordRects), kWordCol);
+    gfx->FillRects(wordRects.els, len(wordRects), wordCol);
 }
 
 // ---------------- 3. playback bar ----------------
@@ -137,6 +139,7 @@ struct ReadAloudPlaybackBar : WindowBase {
     void SetSession(WindowTab* tab);
     void BuildLayout();
     void SyncLabels();
+    void SyncVolume();
     void SyncColors();
     void UpdateLayout(bool forceLayout = false);
     void OnPaint(WindowBase::PaintEvent* ev);
@@ -145,10 +148,14 @@ struct ReadAloudPlaybackBar : WindowBase {
     HWND hwndCanvas = nullptr;
     VirtButton* btnPause = nullptr;
     VirtButton* btnStop = nullptr;
+    VirtButton* btnVoice = nullptr;
+    VirtIconButton* btnVolume = nullptr;
+    VirtSlider* volumeSlider = nullptr;
     VirtSlider* speedSlider = nullptr;
     VirtText* speedLabel = nullptr;
     VirtText* status = nullptr;
     bool showResume = false;
+    float volumeBeforeMute = 1.0f;
     int lastX = 0;
     int lastY = 0;
     int lastDx = 0;
@@ -169,6 +176,36 @@ static void OnPauseClicked(ReadAloudPlaybackBar* bar, VirtMouseEvent*) {
 static void OnStopClicked(ReadAloudPlaybackBar*, VirtMouseEvent*) {
     dbgtts("bar stop-click\n");
     ReadAloudPlaybackStop();
+}
+
+static void OnVoiceClicked(ReadAloudPlaybackBar* bar, VirtMouseEvent*);
+
+constexpr int kVolumeSteps = 100;
+
+static void OnVolumeClicked(ReadAloudPlaybackBar* bar, VirtMouseEvent*) {
+    float volume = TtsGetVolume();
+    if (volume > 0) {
+        bar->volumeBeforeMute = volume;
+        ReadAloudSetVolume(0);
+    } else {
+        ReadAloudSetVolume(bar->volumeBeforeMute > 0 ? bar->volumeBeforeMute : 1.0f);
+    }
+    bar->SyncVolume();
+    HwndInvalidate(bar->hwnd);
+}
+
+static void OnVolumeSliderDrag(ReadAloudPlaybackBar* bar) {
+    TtsSetVolume((float)bar->volumeSlider->value / kVolumeSteps);
+    bar->SyncVolume();
+    HwndInvalidate(bar->hwnd);
+}
+
+static void OnVolumeSliderCommit(ReadAloudPlaybackBar* bar) {
+    ReadAloudSetVolume((float)bar->volumeSlider->value / kVolumeSteps);
+}
+
+static void OnVolumeSliderTooltip(ReadAloudPlaybackBar* bar, VirtTooltipEvent* ev) {
+    ev->tip = fmt("%d%%", bar->volumeSlider->ValueFromLocalX(ev->ptLocal.x));
 }
 
 static void SyncSpeedLabel(ReadAloudPlaybackBar* bar) {
@@ -233,7 +270,7 @@ HWND ReadAloudPlaybackBar::Create(HWND parentCanvas) {
     return hwnd;
 }
 
-// [Pause] [Stop] [slider] [1.5x] [status…]. The HWND is WS_EX_LAYOUTRTL, but we
+// [Pause] [Stop] [Voice] [volume] [slider] [speed slider] [1.5x] [status…]. The HWND is WS_EX_LAYOUTRTL, but we
 // paint into a DoubleBuffer DC that is not mirrored, so HBox.rtl (not GDI's
 // flip) is what reverses the row.
 void ReadAloudPlaybackBar::BuildLayout() {
@@ -256,6 +293,26 @@ void ReadAloudPlaybackBar::BuildLayout() {
     btnStop->flags &= ~vwfFocusable;
     btnStop->flags |= vwfCapturesMouse;
     btnStop->onClick = MkFunc1(OnStopClicked, this);
+
+    btnVoice = new VirtButton(Tr("Voice"), pf);
+    btnVoice->textPadding = btnPad;
+    btnVoice->flags &= ~vwfFocusable;
+    btnVoice->flags |= vwfCapturesMouse;
+    btnVoice->onClick = MkFunc1(OnVoiceClicked, this);
+
+    btnVolume = new VirtIconButton();
+    int volPad = DpiScale(4);
+    btnVolume->padding = Insets{volPad, volPad, volPad, volPad};
+    btnVolume->SetTooltip(Tr("Mute"));
+    btnVolume->onClick = MkFunc1(OnVolumeClicked, this);
+
+    volumeSlider = new VirtSlider();
+    volumeSlider->minVal = 0;
+    volumeSlider->maxVal = kVolumeSteps;
+    volumeSlider->value = (int)(TtsGetVolume() * kVolumeSteps + 0.5f);
+    volumeSlider->onValueChanged = MkFunc0(OnVolumeSliderDrag, this);
+    volumeSlider->onValueCommitted = MkFunc0(OnVolumeSliderCommit, this);
+    volumeSlider->onGetTooltip = MkFunc1(OnVolumeSliderTooltip, this);
 
     speedSlider = new VirtSlider();
     speedSlider->minVal = 0;
@@ -283,12 +340,33 @@ void ReadAloudPlaybackBar::BuildLayout() {
     row->AddChild(new Spacer(gap, 0));
     row->AddChild(btnStop);
     row->AddChild(new Spacer(gap, 0));
+    row->AddChild(btnVoice);
+    row->AddChild(new Spacer(gap, 0));
+    row->AddChild(btnVolume);
+    row->AddChild(volumeSlider);
+    row->AddChild(new Spacer(gap, 0));
     row->AddChild(speedSlider);
     row->AddChild(new Spacer(gap, 0));
     row->AddChild(speedLabel);
     row->AddChild(new Spacer(gap, 0));
     row->AddChild(status, 1);
     layout = new Padding(row, Insets{padY, padX, padY, padX});
+}
+
+// speaker icon: muted / low / high, and the slider follows the volume
+void ReadAloudPlaybackBar::SyncVolume() {
+    float volume = TtsGetVolume();
+    if (!volumeSlider->IsAdjusting()) {
+        volumeSlider->SetValue((int)(volume * kVolumeSteps + 0.5f), false);
+    }
+    const char* icon = gIconSpeak;
+    if (volume <= 0) {
+        icon = gIconVolumeMuted;
+    } else if (volume < 0.5f) {
+        icon = gIconVolumeLow;
+    }
+    int isz = RoundUp(DpiScale(16), 4);
+    btnVolume->pixmap = GetCachedPixmapForSvg(Str(icon), isz, isz, ThemeNotificationsTextColor());
 }
 
 void ReadAloudPlaybackBar::SyncLabels() {
@@ -298,6 +376,7 @@ void ReadAloudPlaybackBar::SyncLabels() {
         speedSlider->SetValue(ReadAloudClosestSpeedIdx(), false);
         SyncSpeedLabel(this);
     }
+    SyncVolume();
     status->SetText(ReadAloudPlaybackBarTextTemp(sessionTab));
 }
 
@@ -307,7 +386,7 @@ void ReadAloudPlaybackBar::SyncColors() {
     Color colBorder = kColGray;
     Color colBtnBg = AccentColor(colBg, 8, -8);
     Color colBtnHover = AccentColor(colBg, 16, -16);
-    VirtButton* btns[] = {btnPause, btnStop};
+    VirtButton* btns[] = {btnPause, btnStop, btnVoice};
     for (VirtButton* b : btns) {
         b->SetColor(kColBtnBg, colBtnBg);
         b->SetColor(kColBtnBgHover, colBtnHover);
@@ -319,6 +398,10 @@ void ReadAloudPlaybackBar::SyncColors() {
     speedSlider->SetColor(kColSliderFill, thumb);
     speedSlider->SetColor(kColSliderThumb, thumb);
     speedSlider->SetColor(kColSliderThumbHover, AccentColor(thumb, 18, -18));
+    volumeSlider->SetColor(kColSliderTrack, AccentColor(colBg, 28, -28));
+    volumeSlider->SetColor(kColSliderFill, thumb);
+    volumeSlider->SetColor(kColSliderThumb, thumb);
+    volumeSlider->SetColor(kColSliderThumbHover, AccentColor(thumb, 18, -18));
     speedLabel->SetColor(kColText, colTxt);
     status->SetColor(kColText, colTxt);
 }
@@ -594,6 +677,13 @@ HMENU GetReadAloudContextSubmenu() {
     return gReadAloudContextSubmenu;
 }
 
+void ReadAloudSetVolume(float volume) {
+    TtsSetVolume(volume);
+    gSettings->readAloudVolume = TtsGetVolume();
+    ScheduleSaveSettings();
+    RelayoutVisiblePlaybackBars();
+}
+
 void ReadAloudSetSpeed(float speed) {
     TtsSetSpeed(speed);
     gSettings->readAloudSpeed = TtsGetSpeed();
@@ -660,6 +750,40 @@ static void BuildReadAloudVoiceMenuItems(HMENU voiceMenu) {
     RemoveBadMenuSeparators(voiceMenu);
 }
 
+// the voice list, dropping up from the bar's Voice button
+static void OnVoiceClicked(ReadAloudPlaybackBar* bar, VirtMouseEvent*) {
+    WindowTab* tab = bar->sessionTab;
+    MainWindow* win = tab ? tab->win : nullptr;
+    if (!win || !bar->hwnd || !bar->btnVoice) {
+        return;
+    }
+
+    HMENU menu = CreatePopupMenu();
+    if (!menu) {
+        return;
+    }
+    BuildReadAloudVoiceMenuItems(menu);
+
+    Rect btn = bar->btnVoice->bounds;
+    POINT pt = {btn.x, btn.y};
+    ClientToScreen(bar->hwnd, &pt);
+    UINT selected = (UINT)TrackPopupMenu(menu, TPM_RETURNCMD | TPM_BOTTOMALIGN, pt.x, pt.y, 0, win->hwndFrame, nullptr);
+    DestroyMenu(menu);
+    if (selected != 0) {
+        HandleReadAloudMenuCommand(win, (int)selected);
+    }
+}
+
+// appends a row with the shortcut of the command it runs, if any
+static void AppendReadAloudItem(HMENU menu, UINT flags, int menuId, Str title) {
+    TempStr label = title;
+    int accelCmd = ReadAloudMenuAccelCmd(menuId);
+    if (accelCmd != 0) {
+        label = AppendAccelKeyToMenuStringTemp(label, accelCmd);
+    }
+    AppendMenuW(menu, flags, menuId, CWStrTemp(label));
+}
+
 static void BuildReadAloudMenuItems(HMENU menu, MainWindow* win, bool includeCursorItem, bool canReadFromCursor) {
     WindowTab* currTab = win ? win->CurrentTab() : nullptr;
     bool isSpeaking = TtsIsSpeaking();
@@ -667,24 +791,24 @@ static void BuildReadAloudMenuItems(HMENU menu, MainWindow* win, bool includeCur
     bool hasSelection = currTab && win->showSelection && currTab->selectionOnPage && len(*currTab->selectionOnPage) > 0;
 
     if (isSpeaking) {
-        AppendMenuW(menu, MF_STRING, CmdTtsMenuPauseReading, CWStrTemp(Tr("Pause Reading")));
+        AppendReadAloudItem(menu, MF_STRING, CmdTtsMenuPauseReading, Tr("Pause Reading"));
     } else if (canContinue) {
-        AppendMenuW(menu, MF_STRING, CmdTtsMenuContinueReading, CWStrTemp(Tr("Continue Reading")));
+        AppendReadAloudItem(menu, MF_STRING, CmdTtsMenuContinueReading, Tr("Continue Reading"));
     }
     // always listed: the playback bar can be off-screen or lose z-order (issue #6053)
     UINT stopFlags = MF_STRING;
     if (!isSpeaking && !canContinue) {
         stopFlags |= MF_GRAYED;
     }
-    AppendMenuW(menu, stopFlags, CmdTtsMenuStopReading, CWStrTemp(Tr("Stop Reading")));
+    AppendReadAloudItem(menu, stopFlags, CmdTtsMenuStopReading, Tr("Stop Reading"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, CmdTtsMenuReadCurrentPage, CWStrTemp(Tr("Start Reading From Top")));
+    AppendReadAloudItem(menu, MF_STRING, CmdTtsMenuReadCurrentPage, Tr("Start Reading From Top"));
     if (includeCursorItem) {
         AppendMenuW(menu, canReadFromCursor ? MF_STRING : MF_STRING | MF_GRAYED, CmdTtsMenuReadFromCursor,
                     CWStrTemp(Tr("Start Reading From Cursor Position")));
     }
-    AppendMenuW(menu, hasSelection ? MF_STRING : MF_STRING | MF_GRAYED, CmdTtsMenuReadSelection,
-                CWStrTemp(Tr("Start Reading Selection")));
+    AppendReadAloudItem(menu, hasSelection ? MF_STRING : MF_STRING | MF_GRAYED, CmdTtsMenuReadSelection,
+                        Tr("Start Reading Selection"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
     HMENU voiceMenu = CreatePopupMenu();

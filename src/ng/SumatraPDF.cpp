@@ -5323,6 +5323,25 @@ void ExecuteCmd(MainWindow* win, int cmdId) {
             break;
         }
 
+        case CmdReadAloudNextSentence:
+        case CmdReadAloudPrevSentence:
+        case CmdReadAloudNextParagraph:
+        case CmdReadAloudPrevParagraph: {
+            if (!tab) {
+                break;
+            }
+            ReadAloudJump kind = ReadAloudJump::NextSentence;
+            if (cmdId == CmdReadAloudPrevSentence) {
+                kind = ReadAloudJump::PrevSentence;
+            } else if (cmdId == CmdReadAloudNextParagraph) {
+                kind = ReadAloudJump::NextParagraph;
+            } else if (cmdId == CmdReadAloudPrevParagraph) {
+                kind = ReadAloudJump::PrevParagraph;
+            }
+            ReadAloudJumpInTab(tab, kind);
+            break;
+        }
+
         case CmdReadAloudFromCursorPosition: {
             ReadAloudAtPoint(tab, win->dragPrevPos);
             break;

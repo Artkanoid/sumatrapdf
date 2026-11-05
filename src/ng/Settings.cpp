@@ -1042,6 +1042,10 @@ static const FieldInfo gSettingsFields[] = {
     {offsetof(Settings, citationHoverDelay), SettingType::Int, -1},
     {offsetof(Settings, readAloudVoiceId), SettingType::String, 0},
     {offsetof(Settings, readAloudSpeed), SettingType::Float, (intptr_t)"1"},
+    {offsetof(Settings, readAloudVolume), SettingType::Float, (intptr_t)"1"},
+    {offsetof(Settings, readAloudHighlight), SettingType::Bool, true},
+    {offsetof(Settings, readAloudWordColor), SettingType::Color, (intptr_t)"#f59e0b"},
+    {offsetof(Settings, readAloudSentenceColor), SettingType::Color, (intptr_t)"#3b82f6"},
     {offsetof(Settings, readingAutoScrollSpeed), SettingType::Float, (intptr_t)"40"},
     {offsetof(Settings, readingBar), SettingType::Struct, (intptr_t)&gReadingBarInfo},
     {offsetof(Settings, fastScrollOverScrollbar), SettingType::Bool, false},
@@ -1152,7 +1156,7 @@ static const FieldInfo gSettingsFields[] = {
 };
 const StructInfo gSettingsInfo = {
     sizeof(Settings),
-    183,
+    187,
     gSettingsFields,
     "\0\0DefaultDisplayMode\0DefaultZoom\0DisableJavaScript\0AllowExternalImages\0EnableTeXEnhancements\0EscToExit\0Ful"
     "lPathInTitle\0InverseSearchCmdLine\0LazyLoading\0MainWindowBackground\0NoHomeTab\0NoCaj2pdfConverterDownload\0Home"
@@ -1167,17 +1171,17 @@ const StructInfo gSettingsInfo = {
     "igateHint\0ShowAnnotationAuthorInTooltip\0ShowTocPageNumbers\0AutoGenerateTOC\0ShowStartPage\0SidebarDx\0Scrollbar"
     "s\0ScrollbarInSinglePage\0SmoothScroll\0ScrollLineAmount\0SaveMemory\0PaddingAfterLastPage\0ContinuousScrollFollow"
     "sRotation\0IgnoreDestinationZoom\0HighlightLinkDestination\0CitationHoverDelay\0ReadAloudVoiceId\0ReadAloudSpeed\0"
-    "ReadingAutoScrollSpeed\0ReadingBar\0FastScrollOverScrollbar\0PreventSleepInFullscreen\0TabWidth\0TabsEqualWidth\0T"
-    "heme\0HelpTheme\0LastLightTheme\0LastDarkTheme\0DocumentColorsFollowTheme\0TocDy\0SidebarMiddleDy\0ToolbarCustomLa"
-    "yout\0ToolbarShowReadAloud\0ToolbarSize\0TreeFontName\0TreeFontSize\0UIFontSize\0DisableAntiAlias\0EngineeringDraw"
-    "ingEnhance\0DisableAutoLinks\0UseSysColors\0UseTabs\0ShowCaption\0SelectionToolbar\0SelectionToolbarLayout\0TabsMr"
-    "u\0CtrlTabSimple\0ZoomLevels\0ZoomIncrement\0\0FixedPageUI\0\0EBookUI\0\0ComicBookUI\0\0ImageUI\0\0ChmUI\0\0Markdo"
-    "wnUI\0\0HtmlUI\0\0ClaudeCode\0\0GrokBuild\0\0CodexBuild\0\0AntiGravity\0\0AIChat\0\0AIChatSidebarDx\0\0TranslateTo"
-    "Lang\0TranslateFromLang\0TranslateEngine\0\0Annotations\0\0ExternalViewers\0\0ForwardSearch\0\0PrinterDefaults\0\0"
-    "Fullscreen\0\0SelectionHandlers\0\0TextSnippets\0\0Shortcuts\0\0Themes\0\0TabGroups\0\0CustomScreenDPI\0\0\0Defaul"
-    "tPasswords\0UiLanguage\0VersionToSkip\0WindowState\0WindowPos\0SearchUIWindowPos\0AnnotationsWindowShowNote\0HelpW"
-    "indowPos\0FileStates\0SessionData\0ReopenOnce\0TimeOfLastUpdateCheck\0OpenCountWeek\0PropWinPos\0CheckForUpdates\0"
-    "OnlineApiKey\0OnlineServer\0\0",
+    "ReadAloudVolume\0ReadAloudHighlight\0ReadAloudWordColor\0ReadAloudSentenceColor\0ReadingAutoScrollSpeed\0ReadingBa"
+    "r\0FastScrollOverScrollbar\0PreventSleepInFullscreen\0TabWidth\0TabsEqualWidth\0Theme\0HelpTheme\0LastLightTheme\0"
+    "LastDarkTheme\0DocumentColorsFollowTheme\0TocDy\0SidebarMiddleDy\0ToolbarCustomLayout\0ToolbarShowReadAloud\0Toolb"
+    "arSize\0TreeFontName\0TreeFontSize\0UIFontSize\0DisableAntiAlias\0EngineeringDrawingEnhance\0DisableAutoLinks\0Use"
+    "SysColors\0UseTabs\0ShowCaption\0SelectionToolbar\0SelectionToolbarLayout\0TabsMru\0CtrlTabSimple\0ZoomLevels\0Zoo"
+    "mIncrement\0\0FixedPageUI\0\0EBookUI\0\0ComicBookUI\0\0ImageUI\0\0ChmUI\0\0MarkdownUI\0\0HtmlUI\0\0ClaudeCode\0\0G"
+    "rokBuild\0\0CodexBuild\0\0AntiGravity\0\0AIChat\0\0AIChatSidebarDx\0\0TranslateToLang\0TranslateFromLang\0Translat"
+    "eEngine\0\0Annotations\0\0ExternalViewers\0\0ForwardSearch\0\0PrinterDefaults\0\0Fullscreen\0\0SelectionHandlers\0"
+    "\0TextSnippets\0\0Shortcuts\0\0Themes\0\0TabGroups\0\0CustomScreenDPI\0\0\0DefaultPasswords\0UiLanguage\0VersionTo"
+    "Skip\0WindowState\0WindowPos\0SearchUIWindowPos\0AnnotationsWindowShowNote\0HelpWindowPos\0FileStates\0SessionData"
+    "\0ReopenOnce\0TimeOfLastUpdateCheck\0OpenCountWeek\0PropWinPos\0CheckForUpdates\0OnlineApiKey\0OnlineServer\0\0",
     "\0\0default layout of pages. page aspect (3.7+): first open of a PDF, XPS, DjVu, PostScript or DVI file uses page "
     "1 — taller than wide is continuous + fit width, wider than tall is single page + fit page; a remembered FileState "
     "still wins\0default zoom. valid values: fit page, fit width, fit height, fit content or percent like 100%\0if "
@@ -1277,20 +1281,23 @@ const StructInfo gSettingsInfo = {
     "enable it\0voice id for Read Aloud text-to-speech; empty or unset means system default. Voice ids match those "
     "used internally by the Read Aloud Voice menu (WinRT voice id or SAPI token id)\0playback speed multiplier for "
     "Read Aloud text-to-speech (0.5 .. 3.0), 1 is normal speed; can also be changed from the Read Aloud playback "
-    "bar\0pixels per second for Automatically Scroll (View menu / Ctrl+Shift+H). 1 to 320; also changed from the "
-    "auto-scroll bar and the arrow keys while scrolling\0reading bar (View menu): a horizontal band on the page to "
-    "keep your place. Highlight fills the band; Invert dims everything else\0if true, mouse wheel scrolling is faster "
-    "when mouse is over a scrollbar\0if true, prevents the screen from turning off when in fullscreen or presentation "
-    "mode\0maximum width of a single tab, in pixels at 100% display scaling (at least 60)\0if true, all tabs are "
-    "equally wide. If false, a tab is as wide as its file name needs, up to TabWidth\0valid themes: Light, Dark, Light "
-    "Warm, Dark from 3.5, Charcoal, Solarized Light, Solarized Dark, Dracula, Nebula, Greeny, Choco, Purpy, One Dark, "
-    "Monokai, Nord, GitHub Dark, Catppuccin Mocha, Tokyo Night, Gruvbox, Night Owl, Ayu, Palenight, System\0color "
-    "theme of the in-app manual (F1): app (follow the app's theme), light or dark. The switch in the manual's "
-    "top-right corner changes it\0the light theme the light/dark toggle and the System theme switch to\0the dark theme "
-    "the light/dark toggle and the System theme switch to\0how MuPDF-rendered documents (PDF, XPS, DjVu, EPUB, MOBI, "
-    "FB2, CBZ, images, etc.) use UI / FixedPageUI colors for the page. Values: off (document's own colors; default); "
-    "smart (recolor text and page background, keep photos/images as-is — best for dark reading); legacy (also recolor "
-    "images; pre-3.7 invert-style). Does not change menus/toolbars — use Theme for UI chrome. Settings / Theme and the "
+    "bar\0volume of Read Aloud text-to-speech (0 .. 1), 1 is full volume; can also be changed from the Read Aloud "
+    "playback bar\0if true, Read Aloud underlines the sentence and word being spoken\0color of the underline marking "
+    "the word being spoken\0color of the underline marking the sentence being spoken\0pixels per second for "
+    "Automatically Scroll (View menu / Ctrl+Shift+H). 1 to 320; also changed from the auto-scroll bar and the arrow "
+    "keys while scrolling\0reading bar (View menu): a horizontal band on the page to keep your place. Highlight fills "
+    "the band; Invert dims everything else\0if true, mouse wheel scrolling is faster when mouse is over a "
+    "scrollbar\0if true, prevents the screen from turning off when in fullscreen or presentation mode\0maximum width "
+    "of a single tab, in pixels at 100% display scaling (at least 60)\0if true, all tabs are equally wide. If false, a "
+    "tab is as wide as its file name needs, up to TabWidth\0valid themes: Light, Dark, Light Warm, Dark from 3.5, "
+    "Charcoal, Solarized Light, Solarized Dark, Dracula, Nebula, Greeny, Choco, Purpy, One Dark, Monokai, Nord, GitHub "
+    "Dark, Catppuccin Mocha, Tokyo Night, Gruvbox, Night Owl, Ayu, Palenight, System\0color theme of the in-app manual "
+    "(F1): app (follow the app's theme), light or dark. The switch in the manual's top-right corner changes it\0the "
+    "light theme the light/dark toggle and the System theme switch to\0the dark theme the light/dark toggle and the "
+    "System theme switch to\0how MuPDF-rendered documents (PDF, XPS, DjVu, EPUB, MOBI, FB2, CBZ, images, etc.) use UI "
+    "/ FixedPageUI colors for the page. Values: off (document's own colors; default); smart (recolor text and page "
+    "background, keep photos/images as-is — best for dark reading); legacy (also recolor images; pre-3.7 "
+    "invert-style). Does not change menus/toolbars — use Theme for UI chrome. Settings / Theme and the "
     "CmdSetDocumentColorsFollowTheme command set all three values. Shift+I (Invert Colors) is separate: it swaps the "
     "page colors for the session whatever this is set to\0if both the favorites and the bookmarks part of the sidebar "
     "are visible, this is the height of the bookmarks (table of contents) part, in screen pixels\0if the sidebar's "

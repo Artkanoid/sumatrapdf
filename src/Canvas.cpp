@@ -1420,6 +1420,12 @@ static void OnMouseLeftButtonDown(MainWindow* win, int x, int y, WPARAM key) {
 
     RefHoverOnCanvasLeftButtonDown(win->refHover, win->hwndCanvas);
 
+    // Ctrl+Alt+click: Read Aloud from the clicked point
+    if (MouseHasCtrl(key) && IsAltPressed()) {
+        HwndSendCommand(win->hwndFrame, CmdReadAloudFromCursorPosition, MAKELPARAM(x, y));
+        return;
+    }
+
     if (MouseAction::Scrolling == win->mouseAction) {
         win->mouseAction = MouseAction::None;
         return;
@@ -3585,6 +3591,10 @@ static LRESULT CanvasOnMouseWheel(MainWindow* win, UINT msg, WPARAM wp, LPARAM l
     bool isCtrl = (LOWORD(wp) & MK_CONTROL) || IsCtrlPressed();
     bool isAlt = (LOWORD(wp) & MK_ALT) || IsAltPressed();
     bool isRightButton = (LOWORD(wp) & MK_RBUTTON) || IsRightButtonPressed();
+    if (isCtrl && isAlt && ReadAloudJumpByWheel(win->CurrentTab(), GET_WHEEL_DELTA_WPARAM(wp))) {
+        gSupressNextAltMenuTrigger = true;
+        return 0;
+    }
     bool isZooming = isCtrl || isRightButton;
     if (isZooming) {
         ZoomByMouseWheel(win, wp);

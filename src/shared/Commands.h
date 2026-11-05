@@ -353,8 +353,12 @@ enum {
     CmdNewTab = 547,
     CmdShowSignatures = 548,
     CmdOpenFromURL = 549,
+    CmdReadAloudNextSentence = 550,
+    CmdReadAloudPrevSentence = 551,
+    CmdReadAloudNextParagraph = 552,
+    CmdReadAloudPrevParagraph = 553,
 
-    CmdLast = 549,
+    CmdLast = 553,
     CmdFirstCustom = CmdLast + 100,
 
     // aliases, at the end to not mess ordering

@@ -1065,6 +1065,15 @@ struct Settings {
     // 3.0), 1 is normal speed; can also be changed from the Read Aloud
     // playback bar
     float readAloudSpeed;
+    // volume of Read Aloud text-to-speech (0 .. 1), 1 is full volume; can
+    // also be changed from the Read Aloud playback bar
+    float readAloudVolume;
+    // if true, Read Aloud underlines the sentence and word being spoken
+    bool readAloudHighlight;
+    // color of the underline marking the word being spoken
+    ParsedColor readAloudWordColor;
+    // color of the underline marking the sentence being spoken
+    ParsedColor readAloudSentenceColor;
     // pixels per second for Automatically Scroll (View menu /
     // Ctrl+Shift+H). 1 to 320; also changed from the auto-scroll bar and
     // the arrow keys while scrolling

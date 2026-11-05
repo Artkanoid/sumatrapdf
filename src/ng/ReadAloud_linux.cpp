@@ -62,6 +62,7 @@ struct SpdApi {
     int (*setDataMode)(SpdConnection*, SpdDataMode) = nullptr;
     int (*setNotificationOn)(SpdConnection*, SpdNotification) = nullptr;
     int (*setVoiceRate)(SpdConnection*, int) = nullptr;
+    int (*setVolume)(SpdConnection*, int) = nullptr;
     int (*setVoice)(SpdConnection*, const char*) = nullptr;
     SpdVoice** (*listVoices)(SpdConnection*) = nullptr;
     void (*freeVoices)(SpdVoice**) = nullptr;
@@ -77,6 +78,7 @@ static Str gTtsSpokenText;
 static Str gTtsQueuedText;
 static Str gTtsVoiceId;
 static float gTtsSpeed = 1.0f;
+static float gTtsVolume = 1.0f;
 static int gTtsSpokenPos = 0;
 static int gTtsActiveMessage = 0;
 static int gTtsQueuedMessage = 0;
@@ -150,7 +152,8 @@ static bool TtsInit() {
         !LoadSpdFn(gSpd.say, "spd_say") || !LoadSpdFn(gSpd.cancel, "spd_cancel") ||
         !LoadSpdFn(gSpd.setDataMode, "spd_set_data_mode") ||
         !LoadSpdFn(gSpd.setNotificationOn, "spd_set_notification_on") ||
-        !LoadSpdFn(gSpd.setVoiceRate, "spd_set_voice_rate") || !LoadSpdFn(gSpd.setVoice, "spd_set_synthesis_voice") ||
+        !LoadSpdFn(gSpd.setVoiceRate, "spd_set_voice_rate") || !LoadSpdFn(gSpd.setVolume, "spd_set_volume") ||
+        !LoadSpdFn(gSpd.setVoice, "spd_set_synthesis_voice") ||
         !LoadSpdFn(gSpd.listVoices, "spd_list_synthesis_voices") || !LoadSpdFn(gSpd.freeVoices, "free_spd_voices")) {
         if (gSpd.lib) {
             dlclose(gSpd.lib);
@@ -209,6 +212,11 @@ static int TtsRate() {
     return (int)(((gTtsSpeed - 1.0f) / (kTtsSpeedMax - 1.0f)) * 100.0f);
 }
 
+// speech-dispatcher volume is -100 .. 100
+static int TtsVolumeLevel() {
+    return (int)(gTtsVolume * 200.0f - 100.0f);
+}
+
 bool TtsIsAvailable() {
     return TtsInit();
 }
@@ -219,6 +227,7 @@ bool TtsSpeakUtf8(Str text) {
     }
     TtsStop();
     gSpd.setVoiceRate(gTtsConnection, TtsRate());
+    gSpd.setVolume(gTtsConnection, TtsVolumeLevel());
     if (len(gTtsVoiceId) > 0) {
         gSpd.setVoice(gTtsConnection, CStrTemp(gTtsVoiceId));
     }
@@ -344,6 +353,17 @@ void TtsSetSpeed(float speed) {
 
 float TtsGetSpeed() {
     return gTtsSpeed;
+}
+
+void TtsSetVolume(float volume) {
+    gTtsVolume = limitValue(volume, 0.0f, 1.0f);
+    if (gTtsConnection) {
+        gSpd.setVolume(gTtsConnection, TtsVolumeLevel());
+    }
+}
+
+float TtsGetVolume() {
+    return gTtsVolume;
 }
 
 void TtsLinuxRelease() {

@@ -74,13 +74,9 @@ Implication: toolbar and menus always target the **current tab**, which is also 
 | **“From Top” wording**                   | Menu says **Start Reading From Top**; bar says **From top**. Same behavior (first visible text → end) but labels differ slightly.                                                                                                                                                 |
 | **Global audio, second window**          | TTS is app-global. If one window is reading and the user focuses another SumatraPDF window, the focused window has no playback bar (only toolbar tooltip reflects global speaking state). Rare with single-window use; tab switch within a window is not affected (speech stops). |
 | **Tab switch ends session**              | Intentional and coherent, but users who pause and switch tabs lose resume position without warning — a one-line toast (“Reading stopped”) on tab change could set expectations.                                                                                                   |
-| **Silent permission failure**            | Copy-restricted PDFs block read aloud with **no user message** when `Perm::CopySelection` is denied.                                                                                                                                                                              |
 | **Highlight not configurable**           | Follow-along always uses selection color; no toggle, dedicated read-aloud color, or disable.                                                                                                                                                                                      |
-| **No speech rate control**               | Windows voices speak at system rate only; no in-app slow/normal/fast.                                                                                                                                                                                                             |
 | **Playback bar has no Voice / settings** | Voice changes require opening a menu or palette; no ⚙ on the bar (deferred in original mock).                                                                                                                                                                                     |
 | **Scanned PDF dead-end**                 | “No text available to read aloud” toast with no OCR / next-step affordance.                                                                                                                                                                                                       |
-| **Palette Stop always listed?**          | `CmdStopReadAloud` lacks palette context gating (unlike Pause/Continue); may appear when no session is active.                                                                                                                                                                    |
-| **No default keyboard shortcut**         | Everything reachable via palette/menus but nothing bound in default accelerators for “start reading” or “pause”.                                                                                                                                                                  |
 | **Context menu placement**               | **Read Aloud (TTS)** is a sibling submenu after Document, not inline near **Copy** / selection actions.                                                                                                                                                                           |
 
 ## What changed since the first UX pass
@@ -197,9 +193,9 @@ Keep toasts short; one primary action each.
 
 Hiding Stop when idle reduces palette noise.
 
-### 9. Default keyboard shortcut
+### 9. Default keyboard shortcuts
 
-Bind a discoverable shortcut (e.g. `Ctrl+Shift+S` toggle pause/resume, or `Ctrl+Shift+R` start) in default accelerators; document in Keyboard shortcuts. Custom rebinding already supported.
+**Done** — `Ctrl+Space` or `Ctrl+Shift+R` toggle (start / pause / continue), `Ctrl+Shift+Space` read from top, `Alt+Shift+R` read selection, `Alt+Shift+S` stop, `Ctrl+Shift+Enter` read from cursor, `Ctrl+Alt+Left/Right` previous / next sentence, `Ctrl+Alt+Up/Down` previous / next paragraph. Custom rebinding is supported.
 
 ### 10. Selection scope expectations
 
@@ -232,7 +228,7 @@ _“Open a document, start Read Aloud from the toolbar or right-click menu, choo
 | ~~Unify bar scope label with menu wording~~ | Inline **Start Reading Selection** under Copy                         |
 | ~~“Paused ·” prefix on bar status line~~    | OCR / next-page path on no-text                                       |
 | Menu tooltips for start scopes              | **Read selection then continue** scope                                |
-| Default keyboard shortcut                   | Multi-window “reading elsewhere” notice                               |
+| ~~Default keyboard shortcut~~               | Multi-window “reading elsewhere” notice                               |
 | Bar button contrast / optional icons        | Optional toolbar Stop affordance                                      |
 | ~~Fix toolbar pause icon~~                  | ~~Cross-tab session policy~~ (not needed — tab switch clears session) |
 
@@ -240,7 +236,7 @@ The largest **remaining** gap is **toolbar triple-duty** (start / pause / contin
 
 ## Related implementation map (for developers)
 
-- **Commands:** `CmdToggleReadAloud`, `CmdPauseReadAloud`, `CmdContinueReadAloud`, `CmdStopReadAloud`, `CmdReadAloudFromTopPage`, `CmdReadAloudSelection` — palette; no default shortcut
+- **Commands:** `CmdToggleReadAloud`, `CmdPauseReadAloud`, `CmdContinueReadAloud`, `CmdStopReadAloud`, `CmdReadAloudFromTopPage`, `CmdReadAloudSelection`, `CmdReadAloud{Next,Prev}{Sentence,Paragraph}` — palette and default shortcuts (`Accelerators.cpp`)
 - **TTS menu ids:** `CmdTtsMenuReadCurrentPage`, `CmdTtsMenuContinueReading`, `CmdTtsMenuReadSelection`, `CmdTtsMenuPauseReading`, `CmdTtsMenuReadFromCursor`, `CmdTtsMenuStopReading`, `CmdTtsVoice*`
 - **Menus:** `BuildReadAloudMenuItems` / `RebuildReadAloudMenu` in `SumatraPDF.cpp`; menubar + context in `Menu.cpp`
 - **Toolbar:** speak + dropdown (`ShowTtsVoiceMenu`); dynamic tooltip/icon in `Toolbar.cpp`
@@ -254,6 +250,6 @@ The largest **remaining** gap is **toolbar triple-duty** (start / pause / contin
 - **Highlight:** `PaintReadAloudHighlight`, highlight timer in `ReadAloudHighlight.cpp`
 - **Resume:** `readAloudText`, `readAloudResumePos`, chunk fields on `WindowTab`
 - **Tab switch:** `LoadModelIntoTab` → `CloseDocumentInCurrentTab` → `ResetReadAloudStateForTab` (stops TTS, clears session)
-- **Copy permission:** silent return in read-aloud entry paths when `Perm::CopySelection` denied
+- **Copy permission:** entry paths show a notification when `Perm::CopySelection` is denied
 - **TTS:** `TextToSpeech.cpp` — WinRT + SAPI; `ReadAloudVoiceId` in settings
 - **User docs:** `sumatra-website/www/docs/Accessibility-and-Text-to-Speech.md`, `sumatra-website/www/docs/Commands.md`, version-history 3.7 entry

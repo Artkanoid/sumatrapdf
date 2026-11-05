@@ -125,6 +125,7 @@ bool Accelerators_UnitTestCustomShortcutShown();
 bool ShortcutParse_UnitTestShiftedPunct();
 bool AnnotSearch_UnitTests();
 void ReadAloudHighlight_UnitTests();
+extern void ReadAloudSession_UnitTests();
 bool RenderCache_UnitTestCookieUnlocked();
 bool RenderCache_UnitTestFullOfOneVisiblePage();
 bool RenderCache_UnitTestFullOfOldZoom();
@@ -753,6 +754,7 @@ int RunAppUnitTests(bool forAi) {
     utassert(RenderCache_UnitTestFullOfOneVisiblePage());
     utassert(RenderCache_UnitTestFullOfOldZoom());
     ReadAloudHighlight_UnitTests();
+    ReadAloudSession_UnitTests();
 #endif
     return utassert_print_results();
 }

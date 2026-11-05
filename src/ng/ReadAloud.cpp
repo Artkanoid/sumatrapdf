@@ -18,6 +18,7 @@
 #include "DisplayModel.h"
 #include "TextSelection.h"
 #include "Notifications.h"
+#include "Accelerators.h"
 #include "Menu.h"
 #include "Toolbar.h"
 #include "Theme.h"
@@ -30,6 +31,7 @@
 #include "gui/DialogWidgets.h"
 #include "gui/ToolWindow.h"
 #include "ReadAloud.h"
+#include "SvgIcons.h"
 #include "ReadAloudBarCommon.h"
 
 #include "SumatraLog.h"
@@ -154,6 +156,7 @@ bool ApplyReadAloudVoiceFromSettings() {
 
     float speed = gSettings->readAloudSpeed;
     TtsSetSpeed(speed > 0 ? speed : 1.0f);
+    TtsSetVolume(gSettings->readAloudVolume);
 
     Str voiceId = gSettings->readAloudVoiceId;
     if (len(voiceId) == 0) {
@@ -191,7 +194,7 @@ void ReadAloudHighlightTimerStop(MainWindow* win) {
 // ng: orig fills the underlines with Gfx::FillRects; CanvasFillRects is the
 // same thing on a gpui PaintCtx
 void PaintReadAloudHighlight(MainWindow* win, gp::PaintCtx* ctx) {
-    if (!TtsIsSpeaking()) {
+    if (!ReadAloudHighlightEnabled() || !TtsIsSpeaking()) {
         gReadAloudPaintLogState = 0;
         return;
     }
@@ -237,8 +240,8 @@ void PaintReadAloudHighlight(MainWindow* win, gp::PaintCtx* ctx) {
         return;
     }
 
-    constexpr Color kSentenceCol = MkRgb(0x3b, 0x82, 0xf6);
-    constexpr Color kWordCol = MkRgb(0xf5, 0x9e, 0x0b);
+    Color sentenceCol = ReadAloudSentenceColor();
+    Color wordCol = ReadAloudWordColor();
     int minThick = DpiScale(2);
     Rect canvasRc = Rect(0, 0, win->canvasRc.dx, win->canvasRc.dy);
 
@@ -249,7 +252,7 @@ void PaintReadAloudHighlight(MainWindow* win, gp::PaintCtx* ctx) {
         ReadAloudAppendUnderlines(dm, canvasRc, map, sentStartAbs, sentEndAbs, minThick, 10, sentenceRects);
     }
     if (len(sentenceRects) > 0) {
-        CanvasFillRects(ctx, sentenceRects.els, len(sentenceRects), kSentenceCol, 0xff, 0);
+        CanvasFillRects(ctx, sentenceRects.els, len(sentenceRects), sentenceCol, 0xff, 0);
     }
 
     Vec<Rect> wordRects;
@@ -260,7 +263,7 @@ void PaintReadAloudHighlight(MainWindow* win, gp::PaintCtx* ctx) {
     }
     DBG_TTS(dbgtts("paint word=%d..%d rects=%d at %d,%d %dx%d sentRects=%d\n", wordStartAbs, wordEndAbs, len(wordRects),
                    wordRects[0].x, wordRects[0].y, wordRects[0].dx, wordRects[0].dy, len(sentenceRects)));
-    CanvasFillRects(ctx, wordRects.els, len(wordRects), kWordCol, 0xff, 0);
+    CanvasFillRects(ctx, wordRects.els, len(wordRects), wordCol, 0xff, 0);
 }
 
 // ng: orig's kReadAloudHighlightTimerID handler in Canvas.cpp
@@ -309,6 +312,8 @@ struct ReadAloudPlaybackBar {
     WindowTab* sessionTab = nullptr;
     gp::Entity<ReadAloudPlaybackBarView> view;
     gp::SliderState speedSlider;
+    gp::SliderState volumeSlider;
+    float volumeBeforeMute = 1.0f;
     // the slider reports a float; remember what we last pushed into it so a
     // speed change from a menu doesn't fight a drag
     int sliderIdx = -1;
@@ -333,6 +338,8 @@ struct ReadAloudPlaybackBarView {
 
     static void OnCmd(ReadAloudPlaybackBarView* self, gp::Ctx* cx, const gp::ClickEvent*, int64_t cmdId);
     static void OnSpeed(ReadAloudPlaybackBarView* self, gp::Ctx* cx, const gp::SliderEvent* ev);
+    static void OnVolume(ReadAloudPlaybackBarView* self, gp::Ctx* cx, const gp::SliderEvent* ev);
+    static void OnMute(ReadAloudPlaybackBarView* self, gp::Ctx* cx, const gp::ClickEvent* ev);
     static void OnSpeedMove(ReadAloudPlaybackBarView* self, gp::Ctx* cx, const gp::MouseMoveEvent* ev);
     static void OnSpeedHover(ReadAloudPlaybackBarView* self, gp::Ctx* cx, const gp::HoverEvent* ev);
 };
@@ -363,6 +370,40 @@ void ReadAloudPlaybackBarView::OnSpeed(ReadAloudPlaybackBarView* self, gp::Ctx* 
     if (idx != bar->sliderIdx) {
         bar->sliderIdx = idx;
         ReadAloudSetSpeedIdx(idx);
+    }
+    gp::Notify(cx);
+}
+
+constexpr float kVolumeSteps = 100.0f;
+
+// applies live while dragging, saved to the settings when the thumb is released
+void ReadAloudPlaybackBarView::OnVolume(ReadAloudPlaybackBarView* self, gp::Ctx* cx, const gp::SliderEvent*) {
+    MainWindow* win = self->win;
+    ReadAloudPlaybackBar* bar = IsMainWindowValidAndNotClosing(win) ? win->readAloudPlaybackBar : nullptr;
+    if (!bar) {
+        return;
+    }
+    float volume = limitValue(bar->volumeSlider.value.End() / kVolumeSteps, 0.0f, 1.0f);
+    if (bar->volumeSlider.dragging) {
+        TtsSetVolume(volume);
+    } else {
+        ReadAloudSetVolume(volume);
+    }
+    gp::Notify(cx);
+}
+
+void ReadAloudPlaybackBarView::OnMute(ReadAloudPlaybackBarView* self, gp::Ctx* cx, const gp::ClickEvent*) {
+    MainWindow* win = self->win;
+    ReadAloudPlaybackBar* bar = IsMainWindowValidAndNotClosing(win) ? win->readAloudPlaybackBar : nullptr;
+    if (!bar) {
+        return;
+    }
+    float volume = TtsGetVolume();
+    if (volume > 0) {
+        bar->volumeBeforeMute = volume;
+        ReadAloudSetVolume(0);
+    } else {
+        ReadAloudSetVolume(bar->volumeBeforeMute > 0 ? bar->volumeBeforeMute : 1.0f);
     }
     gp::Notify(cx);
 }
@@ -475,6 +516,7 @@ ReadAloudPlaybackBar* ReadAloudPlaybackBarEnsure(MainWindow* win) {
         auto* bar = new ReadAloudPlaybackBar();
         bar->speedSlider = gp::SliderStateNew(0, (float)(ReadAloudSpeedCount() - 1),
                                               gp::SliderSingle((float)ReadAloudClosestSpeedIdx()));
+        bar->volumeSlider = gp::SliderStateNew(0, kVolumeSteps, gp::SliderSingle(TtsGetVolume() * kVolumeSteps));
         win->readAloudPlaybackBar = bar;
     }
     return win->readAloudPlaybackBar;
@@ -576,6 +618,12 @@ static gp::El* ReadAloudBarRowBuild(MainWindow* win, gp::Ctx* cx, bool ownWindow
         }
     }
 
+    // a volume set from elsewhere has to reach the slider, but not mid-drag
+    float volume = TtsGetVolume();
+    if (!bar->volumeSlider.dragging) {
+        gp::SliderSetValue(&bar->volumeSlider, gp::SliderSingle(volume * kVolumeSteps));
+    }
+
     bar->showResume = CanContinueReadAloud(tab) && !TtsIsSpeaking();
     float margin = (float)DpiScale(kBarMargin);
     float gap = (float)DpiScale(kBtnGap);
@@ -599,6 +647,25 @@ static gp::El* ReadAloudBarRowBuild(MainWindow* win, gp::Ctx* cx, bool ownWindow
     row->Child(BarButton(bar, cx, StrL("ra-pause"), bar->showResume ? Tr("Resume") : Tr("Pause"), kBarCmdPause,
                          &bar->pauseBounds));
     row->Child(BarButton(bar, cx, StrL("ra-stop"), Tr("Stop"), kBarCmdStop, &bar->stopBounds));
+    // speaker: muted / low / high; a click mutes or restores
+    const char* volIcon = gIconSpeak;
+    if (volume <= 0) {
+        volIcon = gIconVolumeMuted;
+    } else if (volume < 0.5f) {
+        volIcon = gIconVolumeLow;
+    }
+    row->Child(gpc::Button::New(cx, GStrL("ra-mute"))
+                   ->Ghost()
+                   ->Compact()
+                   ->WithSize(gp::UiSize::Small)
+                   ->Tooltip(GpuiDup(cx->a, Tr("Mute")))
+                   ->Icon(gpc::ButtonIcon::New(cx, gpc::Icon::Empty(cx)->Data(ToGpui(Str(volIcon)))))
+                   ->OnClick(gp::ListenTo(bar->view, &ReadAloudPlaybackBarView::OnMute))
+                   ->IntoEl());
+    row->Child(gpc::Slider::New(cx, GStrL("ra-volume"), &bar->volumeSlider)
+                   ->OnChange(gp::ListenTo(bar->view, &ReadAloudPlaybackBarView::OnVolume))
+                   ->W(80)
+                   ->IntoEl());
     // ng: the listener goes to the component; Slider::IntoEl() replaces the
     // one set on the state
     row->Child(gpc::Slider::New(cx, GStrL("ra-speed"), &bar->speedSlider)
@@ -741,6 +808,12 @@ TempStr ReadAloudPlaybackBarStateTemp(int* exitCodeOut) {
 
 // ---------------- 4. read-aloud session ----------------
 
+void ReadAloudSetVolume(float volume) {
+    TtsSetVolume(volume);
+    gSettings->readAloudVolume = TtsGetVolume();
+    ScheduleSaveSettings();
+}
+
 void ReadAloudSetSpeed(float speed) {
     TtsSetSpeed(speed);
     gSettings->readAloudSpeed = TtsGetSpeed();
@@ -755,6 +828,10 @@ static void MenuAppendItem(MenuModel* menu, Str title, int cmdId, bool enabled, 
     MenuItemModel& it = menu->items[menu->items.len - 1];
     it.disabled = !enabled;
     it.checked = checked;
+    int accelCmd = ReadAloudMenuAccelCmd(cmdId);
+    if (accelCmd != 0) {
+        it.accel = str::Dup(ShortcutsForCmdTemp(accelCmd, 1));
+    }
 }
 
 static void BuildReadAloudVoiceMenuItems(MenuModel* voiceMenu) {
