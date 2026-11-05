@@ -357,8 +357,9 @@ enum {
     CmdReadAloudPrevSentence = 551,
     CmdReadAloudNextParagraph = 552,
     CmdReadAloudPrevParagraph = 553,
+    CmdReadAloudInstallVoice = 554,
 
-    CmdLast = 553,
+    CmdLast = 554,
     CmdFirstCustom = CmdLast + 100,
 
     // aliases, at the end to not mess ordering

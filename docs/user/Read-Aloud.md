@@ -41,12 +41,21 @@ ReadAloudWordColor = #f59e0b
 ReadAloudSentenceColor = #3b82f6
 ```
 
+## Natural voices (Windows)
+
+Run **Read Aloud: Install Natural Voice** from the command palette to get a neural French voice ([Piper](https://github.com/rhasspy/piper), voice _siwis_). It downloads about 85 MB once, checks the files, and selects the voice. Everything runs on your computer: the text is never sent anywhere. The download needs internet access and disk access (not blocked by restrictions).
+
+- Installed in the `piper` folder of the SumatraPDF data folder. Delete that folder to remove it.
+- Other Piper voices: put the `.onnx` and `.onnx.json` files of a voice in `piper/voices`. They appear in the **Voice** menu.
+- Uses about 240 MB of memory while speaking. The word being spoken is estimated, so the word underline is less precise than with the Windows voices.
+
 ## New commands
 
 - `CmdReadAloudNextSentence` : "Read Aloud: Next Sentence" (`Ctrl+Alt+Right`)
 - `CmdReadAloudPrevSentence` : "Read Aloud: Previous Sentence" (`Ctrl+Alt+Left`)
 - `CmdReadAloudNextParagraph` : "Read Aloud: Next Paragraph" (`Ctrl+Alt+Down`)
 - `CmdReadAloudPrevParagraph` : "Read Aloud: Previous Paragraph" (`Ctrl+Alt+Up`)
+- `CmdReadAloudInstallVoice` : "Read Aloud: Install Natural Voice" (palette only)
 
 All shortcuts can be rebound, see the keyboard shortcuts documentation.
 

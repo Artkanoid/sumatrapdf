@@ -21,6 +21,7 @@
 #include "DocController.h"
 #include "EngineBase.h"
 #include "ReadAloud.h"
+#include "ReadAloudPiper.h"
 
 #include "SumatraLog.h"
 
@@ -54,6 +55,10 @@ static bool gTtsQueuedStarted = false;
 static WStr gTtsSpokenText;
 
 static Str gTtsVoiceId;
+
+// a Piper voice is selected: synthesis runs piper.exe, playback is the WinRT one
+static bool gPiperActive = false;
+static PiperJob* gPiperJob = nullptr;
 
 // playback speed multiplier, 1.0 is normal speed
 constexpr float kTtsSpeedMin = 0.5f;
@@ -720,7 +725,15 @@ class WinTtsSynthCompletedHandler : public SynthAsyncHandler {
     }
 };
 
+static bool WinTtsSynthPending() {
+    return gWinSynthOp || gPiperJob;
+}
+
 static void WinTtsCancelSynth() {
+    if (gPiperJob) {
+        PiperJobCancel(gPiperJob);
+        gPiperJob = nullptr;
+    }
     if (!gWinSynthOp) {
         return;
     }
@@ -1007,7 +1020,15 @@ static bool WinTtsSetVoiceById(Str voiceId) {
     return didSet;
 }
 
+static bool WinTtsStartPiper(WStr textW) {
+    gPiperJob = PiperStart(gTtsVoiceId, ToUtf8Temp(textW), gTtsSpeed, TtsPostNotifyMsg);
+    return gPiperJob != nullptr;
+}
+
 static bool WinTtsStartSynth(WStr textW) {
+    if (gPiperActive) {
+        return WinTtsStartPiper(textW);
+    }
     HSTRING text = nullptr;
     HRESULT hr = pWindowsCreateString(textW.s, (UINT32)textW.len, &text);
     if (FAILED(hr)) {
@@ -1031,7 +1052,7 @@ static bool WinTtsStartSynth(WStr textW) {
 }
 
 static bool WinTtsSpeak(WStr textW) {
-    if (!WinTtsInit()) {
+    if (!gPiperActive && !WinTtsInit()) {
         return false;
     }
 
@@ -1050,7 +1071,7 @@ static bool WinTtsSpeak(WStr textW) {
 }
 
 static bool WinTtsQueue(WStr textW) {
-    if (!WinTtsInit() || gWinSynthOp || gWinQueuedWav) {
+    if ((!gPiperActive && !WinTtsInit()) || WinTtsSynthPending() || gWinQueuedWav) {
         return false;
     }
     if (!WinTtsStartSynth(textW)) {
@@ -1302,7 +1323,106 @@ static bool WinTtsPlayQueued() {
     return true;
 }
 
+// extra weight of a word that ends a clause or a sentence: speech pauses there
+constexpr int kPiperWordWeight = 2;
+constexpr int kPiperSentencePause = 8;
+constexpr int kPiperClausePause = 3;
+
+static int WinTtsWordWeight(WStr text, int start, int end) {
+    int weight = end - start + kPiperWordWeight;
+    WCHAR last = text.s[end - 1];
+    if (last == L'.' || last == L'!' || last == L'?' || last == L'\n') {
+        weight += kPiperSentencePause;
+    } else if (last == L',' || last == L';' || last == L':') {
+        weight += kPiperClausePause;
+    }
+    return weight;
+}
+
+// Piper gives no word times: the audio is spread over the words by length
+static void WinTtsEstimateCues(WStr text, u8* wav, DWORD wavSize, Vec<WinTtsCue>& dest) {
+    VecReset(dest);
+
+    WAVEFORMATEX wfx{};
+    const u8* data = nullptr;
+    DWORD dataSize = 0;
+    if (!WinTtsParseWav(wav, wavSize, &wfx, &data, &dataSize) || wfx.nAvgBytesPerSec == 0) {
+        return;
+    }
+    u64 durationMs = (u64)dataSize * 1000 / wfx.nAvgBytesPerSec;
+
+    u64 totalWeight = 0;
+    for (int pass = 0; pass < 2; pass++) {
+        u64 acc = 0;
+        int i = 0;
+        while (i < text.len) {
+            while (i < text.len && iswspace(text.s[i])) {
+                i++;
+            }
+            int start = i;
+            while (i < text.len && !iswspace(text.s[i])) {
+                i++;
+            }
+            if (i == start) {
+                break;
+            }
+            if (pass == 1) {
+                WinTtsCue cue;
+                cue.inputPos = start;
+                cue.timeMs = totalWeight ? (int)(acc * durationMs / totalWeight) : 0;
+                VecAppend(dest, cue);
+            }
+            acc += (u64)WinTtsWordWeight(text, start, i);
+        }
+        totalWeight = acc;
+    }
+}
+
+// the piper.exe run finished: play (or queue) the WAV like a WinRT result
+static void WinTtsFinishPiper() {
+    PiperJob* job = gPiperJob;
+    gPiperJob = nullptr;
+    bool isQueue = gWinSynthIsQueue;
+    gWinSynthIsQueue = false;
+
+    u8* data = nullptr;
+    DWORD size = 0;
+    bool ok = PiperJobTakeWav(job, &data, &size);
+    logf("tts: piper done ok=%d queue=%d bytes=%u\n", (int)ok, (int)isQueue, (u32)size);
+
+    if (ok && isQueue) {
+        gWinQueuedWav = data;
+        gWinQueuedWavSize = size;
+        WinTtsEstimateCues(gWinQueuedText, data, size, gWinQueuedCues);
+        ok = gWinWaveOut ? true : WinTtsPlayQueued();
+    } else if (ok) {
+        gWinWavData = data;
+        gWinWaveHdr.dwBufferLength = size;
+        WinTtsEstimateCues(gTtsSpokenText, data, size, gWinCues);
+        ok = WinTtsStartPlayback();
+    }
+    if (ok) {
+        return;
+    }
+
+    if (isQueue && gWinWaveOut) {
+        WinTtsClearQueued();
+        return;
+    }
+    WinTtsStopPlayback();
+    WinTtsClearQueued();
+    gTtsActive = false;
+}
+
 static void WinTtsProcessEvents() {
+    if (gPiperJob) {
+        if (!PiperJobDone(gPiperJob)) {
+            return;
+        }
+        // not a return: playback may have ended while piper was running
+        WinTtsFinishPiper();
+    }
+
     // a pending synthesis finished: start playing the result
     if (gWinSynthOp) {
         IAsyncInfo* info = nullptr;
@@ -1622,12 +1742,27 @@ Vec<TtsVoiceInfo> TtsGetVoices() {
     }
     VecReset(sapi);
 
+    if (!TtsForceSapi()) {
+        PiperGetVoices(voices);
+    }
+
     TtsSortVoicesByLanguage(voices);
     return voices;
 }
 
 // Use WinRT if it knows the id, else SAPI. Empty id is the system default.
 bool TtsSetVoiceById(Str voiceId) {
+    if (PiperIsVoiceId(voiceId)) {
+        if (!PiperVoiceInstalled(voiceId) || !WinTtsInit()) {
+            return false;
+        }
+        TtsStop();
+        gPiperActive = true;
+        gTtsBackend = TtsBackend::WinRt;
+        str::ReplacePtr(&gTtsVoiceId, str::Dup(voiceId));
+        return true;
+    }
+
     TtsBackend prev = gTtsBackend;
     TtsBackend next = TtsBackend::Unknown;
     bool ok = false;
@@ -1643,6 +1778,10 @@ bool TtsSetVoiceById(Str voiceId) {
         return false;
     }
 
+    if (gPiperActive) {
+        WinTtsStop();
+        gPiperActive = false;
+    }
     if (prev != TtsBackend::Unknown && prev != next) {
         if (prev == TtsBackend::WinRt) {
             WinTtsStop();
@@ -1701,6 +1840,7 @@ void TtsRelease() {
     WinTtsRelease();
     SapiRelease();
 
+    gPiperActive = false;
     gTtsActive = false;
     gTtsQueuedStarted = false;
     gTtsBackend = TtsBackend::Unknown;

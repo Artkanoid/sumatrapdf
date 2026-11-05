@@ -187,6 +187,8 @@ export const sharedFiles = [
   "src/shared/PdfToolsCommon.h",
   "src/shared/Permissions.h",
   "src/shared/ReadAloudBarCommon.h",
+  "src/shared/ReadAloudPiper.h",
+  "src/shared/ReadAloudPiper_win.cpp",
   "src/shared/ReadAloudSession.cpp",
   "src/shared/ReadAloud_win.cpp",
   "src/shared/ReadingAutoScrollCommon.cpp",

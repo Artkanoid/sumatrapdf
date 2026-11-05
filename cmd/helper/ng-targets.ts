@@ -1535,6 +1535,7 @@ export const targets: Target[] = [
       "src/ng/ReadAloud_linux.cpp",
       "src/ng/ReadAloudSession.cpp",
       "src/ng/ReadAloud_win.cpp",
+      "src/ng/ReadAloudPiper_win.cpp",
       "src/ng/ReadAloud_mac.mm",
       "src/ng/ReadAloud_wasm.cpp",
       "src/ng/ReadAloudHighlight.cpp",

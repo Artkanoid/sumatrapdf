@@ -198,6 +198,7 @@ void ReadAloudFromViewportTopInTab(WindowTab* tab);
 void ReadAloudFromCursorInTab(WindowTab* tab, Point screenPt);
 void ReadAloudStopRememberPos();
 void ReadAloudJumpInTab(WindowTab* tab, ReadAloudJump kind);
+void ReadAloudInstallVoice(MainWindow* win);
 bool ReadAloudJumpByWheel(WindowTab* tab, int delta);
 int ReadAloudMenuAccelCmd(int menuId);
 void ResetReadAloudStateForTab(WindowTab* tab);

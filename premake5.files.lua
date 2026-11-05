@@ -403,6 +403,8 @@ function sumatrapdf_files()
     "ProgressUpdateUI.*",
     "ReadAloud.*",
     "ReadAloudHighlight.*",
+    "ReadAloudPiper.*",
+    "ReadAloudPiper_win.*",
     "ReadAloudSession.*",
     "ReadAloud_win.*",
     "ReadingAutoScroll.*",

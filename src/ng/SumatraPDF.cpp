@@ -5342,6 +5342,10 @@ void ExecuteCmd(MainWindow* win, int cmdId) {
             break;
         }
 
+        case CmdReadAloudInstallVoice:
+            ReadAloudInstallVoice(win);
+            break;
+
         case CmdReadAloudFromCursorPosition: {
             ReadAloudAtPoint(tab, win->dragPrevPos);
             break;

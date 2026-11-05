@@ -3,6 +3,7 @@
 
 #include "base/Base.h"
 
+#include "base/UITask.h"
 #include "gui/Dpi.h"
 #include "gui/UIModels.h"
 
@@ -23,6 +24,9 @@
 #include "Selection.h"
 #include "SumatraPDF.h"
 #include "ReadAloud.h"
+#if OS_WIN
+#include "ReadAloudPiper.h"
+#endif
 
 #include "SumatraLog.h"
 
@@ -336,6 +340,15 @@ void ReadAloudSaveVoicePref(Str voiceId) {
 
 // WinRT speech synthesis is too slow for whole-document requests; speak in chunks.
 static constexpr int kReadAloudMaxChunkLen = 1024;
+// the chunk that starts speaking: a neural voice synthesizes the whole chunk
+// before the first sound, so it is kept short (the next one is queued while
+// this one plays)
+static constexpr int kReadAloudFirstChunkLen = 240;
+
+static int ReadAloudFirstChunkMax() {
+    bool isNeural = str::StartsWith(TtsGetVoiceId(), StrL("piper:"));
+    return isNeural ? kReadAloudFirstChunkLen : kReadAloudMaxChunkLen;
+}
 
 static bool IsReadAloudSentencePunct(int c) {
     return c == '.' || c == '!' || c == '?' || c == 0x3002 || c == 0xFF01 || c == 0xFF1F || c == 0x2026;
@@ -518,7 +531,7 @@ SpeakChunkResult ReadAloudSpeakChunk(WindowTab* tab, Str errMsg) {
 
     int start = tab->readAloudChunkEnd;
     int textLen = tab->readAloudText.len;
-    int end = ReadAloudFindChunkEnd(tab->readAloudText, start, kReadAloudMaxChunkLen);
+    int end = ReadAloudFindChunkEnd(tab->readAloudText, start, ReadAloudFirstChunkMax());
     if (start >= end) {
         return SpeakChunkResult::Failed;
     }
@@ -1143,6 +1156,117 @@ void ReadAloudShowNotif(WindowTab* tab, Str msg) {
     args.timeoutMs = 2000;
     ShowNotification(args);
 }
+
+#if OS_WIN
+// The install runs on a worker thread (ReadAloudPiper_win.cpp); progress and
+// the result come back to the UI thread through uitask.
+static MainWindow* gInstallWin = nullptr;
+static NotificationWnd* gInstallNotif = nullptr;
+static AtomicInt gInstallPercent = 0;
+static AtomicInt gInstallPercentPosted = -1;
+static AtomicInt gInstallOk = 0;
+
+static void InstallUiProgress(void*) {
+    if (!IsMainWindowValidAndNotClosing(gInstallWin) || !gInstallNotif) {
+        return;
+    }
+    int perc = AtomicIntGet(&gInstallPercent);
+    UpdateNotificationProgress(gInstallNotif, fmt(Tr("Downloading natural voice... %d%%").s, perc), perc);
+}
+
+static void InstallUiDone(void*) {
+    MainWindow* win = gInstallWin;
+    NotificationWnd* notif = gInstallNotif;
+    gInstallWin = nullptr;
+    gInstallNotif = nullptr;
+    if (!IsMainWindowValidAndNotClosing(win)) {
+        return;
+    }
+    if (notif) {
+        CloseNotification(notif);
+    }
+
+    bool ok = AtomicIntGet(&gInstallOk) != 0;
+    TempStr voiceId = PiperDefaultVoiceId();
+    if (ok && TtsSetVoiceById(voiceId)) {
+        ReadAloudSaveVoicePref(voiceId);
+#if defined(SUMATRA_NG)
+        ReadAloudFreeVoiceCache();
+#endif
+    } else {
+        ok = false;
+    }
+
+    NotificationCreateArgs args;
+    args.win = win;
+    args.msg = ok ? Tr("Natural voice installed and selected") : Tr("Could not install the natural voice");
+    args.warning = !ok;
+    args.timeoutMs = 4000;
+    ShowNotification(args);
+}
+
+static void InstallOnProgress(int percent) {
+    AtomicIntSet(&gInstallPercent, percent);
+    if (AtomicIntGet(&gInstallPercentPosted) != percent) {
+        AtomicIntSet(&gInstallPercentPosted, percent);
+        uitask::Post(MkFunc0(InstallUiProgress, (void*)nullptr));
+    }
+}
+
+static void InstallOnDone(bool ok) {
+    AtomicIntSet(&gInstallOk, ok ? 1 : 0);
+    uitask::Post(MkFunc0(InstallUiDone, (void*)nullptr));
+}
+
+void ReadAloudInstallVoice(MainWindow* win) {
+    if (!win) {
+        return;
+    }
+    NotificationCreateArgs args;
+    args.win = win;
+
+    TempStr voiceId = PiperDefaultVoiceId();
+    if (PiperVoiceInstalled(voiceId) && TtsSetVoiceById(voiceId)) {
+        ReadAloudSaveVoicePref(voiceId);
+#if defined(SUMATRA_NG)
+        ReadAloudFreeVoiceCache();
+#endif
+        args.msg = Tr("Natural voice selected");
+        args.timeoutMs = 3000;
+        ShowNotification(args);
+        return;
+    }
+
+    if (!HasPermission(Perm::InternetAccess) || !HasPermission(Perm::DiskAccess)) {
+        args.msg = Tr("Downloading is disabled by the restrictions");
+        args.warning = true;
+        args.timeoutMs = 4000;
+        ShowNotification(args);
+        return;
+    }
+
+    args.msg = fmt(Tr("Downloading natural voice... %d%%").s, 0);
+    NotificationWnd* notif = ShowNotification(args);
+    gInstallWin = win;
+    gInstallNotif = notif;
+    AtomicIntSet(&gInstallPercentPosted, -1);
+    if (PiperInstallStart(InstallOnProgress, InstallOnDone)) {
+        return;
+    }
+    if (notif) {
+        CloseNotification(notif);
+    }
+    gInstallNotif = nullptr;
+}
+#else
+void ReadAloudInstallVoice(MainWindow* win) {
+    NotificationCreateArgs args;
+    args.win = win;
+    args.msg = Tr("Natural voices are only available on Windows");
+    args.timeoutMs = 3000;
+    ShowNotification(args);
+}
+#endif
 
 void ReadAloudUpdateAutoScroll(MainWindow* win) {
     if (!win || !TtsIsSpeaking()) {

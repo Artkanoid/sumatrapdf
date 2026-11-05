@@ -11036,6 +11036,10 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
             break;
         }
 
+        case CmdReadAloudInstallVoice:
+            ReadAloudInstallVoice(win);
+            break;
+
         case CmdReadAloudFromCursorPosition: {
             if (!tab) {
                 break;

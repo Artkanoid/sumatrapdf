@@ -1552,6 +1552,7 @@
     <ClInclude Include="..\src\shared\PrintWin11.h" />
     <ClInclude Include="..\src\shared\ProgressUpdateUI.h" />
     <ClInclude Include="..\src\shared\ReadAloud.h" />
+    <ClInclude Include="..\src\shared\ReadAloudPiper.h" />
     <ClInclude Include="..\src\shared\ReadingAutoScroll.h" />
     <ClInclude Include="..\src\shared\ReadingAutoScrollCommon.h" />
     <ClInclude Include="..\src\shared\ReadingBar.h" />
@@ -2249,6 +2250,7 @@
     <ClCompile Include="..\src\shared\Print.cpp" />
     <ClCompile Include="..\src\shared\PrintWin11.cpp" />
     <ClCompile Include="..\src\shared\ReadAloudHighlight.cpp" />
+    <ClCompile Include="..\src\shared\ReadAloudPiper_win.cpp" />
     <ClCompile Include="..\src\shared\ReadAloudSession.cpp" />
     <ClCompile Include="..\src\shared\ReadAloud_win.cpp" />
     <ClCompile Include="..\src\shared\ReadingAutoScrollCommon.cpp" />

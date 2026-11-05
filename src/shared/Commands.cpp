@@ -363,6 +363,7 @@ const CommandInfo gCommands[] = {
     {CmdReadAloudPrevSentence, "CmdReadAloudPrevSentence\0", StrL("Read Aloud: Previous Sentence")},
     {CmdReadAloudNextParagraph, "CmdReadAloudNextParagraph\0", StrL("Read Aloud: Next Paragraph")},
     {CmdReadAloudPrevParagraph, "CmdReadAloudPrevParagraph\0", StrL("Read Aloud: Previous Paragraph")},
+    {CmdReadAloudInstallVoice, "CmdReadAloudInstallVoice\0", StrL("Read Aloud: Install Natural Voice")},
 };
 const int gCommandsCount = dimofi(gCommands);
 

@@ -364,6 +364,7 @@ const commandsRaw = [
     "CmdReadAloudPrevSentence", "Read Aloud: Previous Sentence",
     "CmdReadAloudNextParagraph", "Read Aloud: Next Paragraph",
     "CmdReadAloudPrevParagraph", "Read Aloud: Previous Paragraph",
+    "CmdReadAloudInstallVoice", "Read Aloud: Install Natural Voice",
 ];
 
 // removed slots are dropped: nothing outside the generators should see them
