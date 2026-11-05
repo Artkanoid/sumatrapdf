@@ -182,6 +182,10 @@ static MenuDef menuDefContext[] = {
         (UINT_PTR)menuDefSelection,
     },
     {
+        TrN("Translate Selection (Offline)"),
+        CmdTranslateSelectionOffline,
+    },
+    {
         TrN("Visual Search With Google &Lens"),
         (UINT_PTR)menuDefGoogleLens,
     },
@@ -589,6 +593,8 @@ HMENU BuildMenuFromDef(MenuDef* menuDef, HMENU menu, BuildMenuCtx* ctx) {
         }
         if (ctx) {
             removeMenu |= !ctx->isCursorOnPage && (subMenuDef == menuDefCreateAnnotUnderCursor);
+            removeMenu |= (menuDef == menuDefContext) && !isSubMenu && !ctx->hasTextSelection &&
+                          cmdId == CmdTranslateSelectionOffline;
             // these annotations need text to mark up, except Highlight, which can
             // fill a drawn rectangle
             bool canMarkUp = ctx->hasTextSelection || ctx->hasDrawnRectSelection;

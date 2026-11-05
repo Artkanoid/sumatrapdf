@@ -115,6 +115,10 @@ static MenuDef menuDefContext[] = {
         (UINT_PTR)menuDefSelection,
     },
     {
+        TrN("Translate Selection (Offline)"),
+        CmdTranslateSelectionOffline,
+    },
+    {
         TrN("Visual Search With Google &Lens"),
         (UINT_PTR)menuDefGoogleLens,
     },
@@ -211,6 +215,7 @@ static MenuDef menuDefContext[] = {
 // clang-format off
 // translate / search selection commands need selected text to operate on
 static uintptr_t selectionTextCmds[] = {
+    CmdTranslateSelectionOffline,
     CmdTranslateSelectionWithGoogle,
     CmdTranslateSelectionWithDeepL,
     CmdTranslateSelectionWithGrokBuild,
@@ -568,6 +573,8 @@ MenuModel* BuildMenuFromDef(MenuDef* menuDef, BuildMenuCtx* ctx) {
         }
         if (ctx) {
             removeMenu |= (menuDef == menuDefMainSelection) && !ctx->hasTextSelection && cmdIdInList(selectionTextCmds);
+            removeMenu |= (menuDef == menuDefContext) && !isSubMenu && !ctx->hasTextSelection &&
+                          cmdId == CmdTranslateSelectionOffline;
             // in the context menu only show translate / search items for a text
             // selection (the menubar variant is live-updated via
             // SetMenuStateForSelection instead)

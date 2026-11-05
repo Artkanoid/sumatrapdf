@@ -778,6 +778,10 @@ MenuDef menuDefMainSelection[] = {
         CmdCopySelection,
     },
     {
+        TrN("Translate Selection (Offline)"),
+        CmdTranslateSelectionOffline,
+    },
+    {
         TrN("&Translate with"),
         (UINT_PTR)menuDefTranslateWith,
     },
@@ -1045,6 +1049,10 @@ MenuDef menuDefDocumentOperations[] = {
     {
         TrN("P&roperties"),
         CmdProperties,
+    },
+    {
+        TrN("Translate Document (Offline)"),
+        CmdTranslateDocumentOffline,
     },
     {
         TrN("Show PDF Info"),

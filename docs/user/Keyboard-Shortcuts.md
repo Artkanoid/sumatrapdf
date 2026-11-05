@@ -138,6 +138,13 @@ Any of them can be changed, see the custom shortcuts documentation. A letter wit
 | Smart Next Tab     | `Ctrl+Tab`             |
 | Smart Previous Tab | `Ctrl+Shift+Tab`       |
 
+## Translation
+
+| Action                        | Shortcut      |
+| ----------------------------- | ------------- |
+| Translate Selection (Offline) | `Ctrl+T`      |
+| Translate Document (Offline)  | `Alt+Shift+T` |
+
 ## Read Aloud
 
 | Action                             | Shortcut                     |

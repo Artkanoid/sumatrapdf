@@ -15,6 +15,12 @@ Run them from the command palette (`Ctrl+K`):
 | **Translate Document (Offline)**  | Translates every page. The new tab holds the translated text.                       |
 | **Cancel Offline Translation**    | Stops a translation in progress.                                                    |
 
+Shortcuts and menus:
+
+- `Ctrl+T`: translate the selection. `Alt+Shift+T`: translate the document.
+- Right-click on selected text: **Translate Selection (Offline)**.
+- **Selection** menu: **Translate Selection (Offline)**. **Document** submenu of the right-click menu: **Translate Document (Offline)**.
+
 The language is detected from the text: English is translated to French, French to English. A progress notification shows the percentage.
 
 The result is saved as `<name>.fr.txt` or `<name>.en.txt` in the `translations` folder of the SumatraPDF data folder.

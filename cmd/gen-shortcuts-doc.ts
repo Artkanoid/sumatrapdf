@@ -124,6 +124,7 @@ const groups: [string, string[]][] = [
     ],
   ],
   ["Tabs", ["CmdNextTab", "CmdPrevTab", "CmdMoveTabRight", "CmdMoveTabLeft", "CmdNextTabSmart", "CmdPrevTabSmart"]],
+  ["Translation", ["CmdTranslateSelectionOffline", "CmdTranslateDocumentOffline"]],
   [
     "Read Aloud",
     [

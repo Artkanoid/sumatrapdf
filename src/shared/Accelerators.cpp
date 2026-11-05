@@ -155,6 +155,8 @@ static Accel gBuiltInAccelerators[] = {
     {{kCtrl | kAlt | kVirt, VK_DOWN}, CmdReadAloudNextParagraph},
     {{kCtrl | kAlt | kVirt, VK_UP}, CmdReadAloudPrevParagraph},
     {{kCtrl | kVirt, VK_SPACE}, CmdToggleReadAloud},
+    {{kCtrl | kVirt, 'T'}, CmdTranslateSelectionOffline},
+    {{kShift | kAlt | kVirt, 'T'}, CmdTranslateDocumentOffline},
     {{kShift | kCtrl | kVirt, VK_SPACE}, CmdReadAloudFromTopPage},
     {{kVirt, VK_F12}, CmdToggleBookmarks},
     {{kShift | kVirt, VK_F12}, CmdNavigateTableOfContents},
